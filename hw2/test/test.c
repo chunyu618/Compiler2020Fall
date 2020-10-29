@@ -12,7 +12,6 @@ int main()
 	float f,g;
 	char s[64] = "This is a /*This is a comment inside String*/ string.{!?}";
     char s2[64] = "There is a \n in this string.";
-    //char s3[64] = "\";
     g = 12e3;
     g = 34e-2;
     g = 34.34e23;
