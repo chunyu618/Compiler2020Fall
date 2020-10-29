@@ -1,6 +1,7 @@
 %option noyywrap 
 %{
 #include <stdio.h>
+#include <string.h>
 #include "header.h" 
 int linenumber;
 symtab * lookup();
@@ -12,7 +13,7 @@ void 	 printSymTab();
 #define DIGIT       12
 #define WHITE_SPACE 13
 #define INT_CONST   14
-#define FLOAT_CONST	15 
+#define FLOAT_CONST 15 
 #define STR_CONST   16
 #define IDENTIFIER  17
 #define COMMENT     18
@@ -40,7 +41,16 @@ void 	 printSymTab();
 #define DL_COMMA    40
 #define DL_SEMICOL  41 
 #define DL_DOT      42
-#define ERROR 		100 
+#define RETURN      43
+#define TYPEDEF     44
+#define IF          45
+#define ELSE        46
+#define INT         47
+#define FLOAT       48
+#define FOR         49
+#define VOID        50
+#define WHILE       51
+#define ERROR       100 
 
 %}
 
@@ -49,8 +59,8 @@ digit [0-9]
 WS [ \t]+
 
 /* Define constants */
-Int_constant {digit}+
-Float_constant {digit}\.{digit}
+Int_constant [1-9]{digit}*
+Float_constant {digit}+[eE][+-]?{digit}+|{digit}+\.{digit}+([eE][+-]?{digit}+)?|({digit}+)?\.{digit}+([eE][+-]?{digit}+)?
 String_constant \"([^\n"\\]|\\.)*\"
 
 /* Define identifiers */
@@ -92,18 +102,49 @@ DL_dot "."
 error .
 
 %%
-{letter} return LETTER;
 {digit} return DIGIT;
-{WS} return WHITE_SPACE;
-{Int_constant} return INT_CONST;
-{Float_constant} return FLOAT_CONST;
-{String_constant} {printf("Get string const %s\n", yytext); return STR_CONST;}
-{ID} { 
+{WS} {}
+{Int_constant} {/*printf("Get int %s\n", yytext); */return INT_CONST;}
+{Float_constant} {/*printf("Get float point %s\n", yytext); */return FLOAT_CONST;}
+{String_constant} {/*printf("Get string const %s\n", yytext); */return STR_CONST;}
+{ID} {
+    if(strcmp(yytext, "return") == 0){
+        return RETURN;
+    }
+    else if(strcmp(yytext, "typedef") == 0){
+        return TYPEDEF;
+    }
+    else if(strcmp(yytext, "if") == 0){
+        return IF;
+    }
+    else if(strcmp(yytext, "else") == 0){
+        return ELSE;
+    }
+    else if(strcmp(yytext, "int") == 0){
+        return INT;
+    }
+    else if(strcmp(yytext, "float") == 0){
+        return FLOAT;
+    }
+    else if(strcmp(yytext, "for") == 0){
+        return FOR;
+    }
+    else if(strcmp(yytext, "void") == 0){
+        return VOID;
+    }
+    else if(strcmp(yytext, "while") == 0){
+        return WHILE;
+    }
     ptr = lookup(yytext);
-    if (ptr == NULL)
-        insertID(yytext);	
-    else 
+    if (ptr == NULL){
+        insertID(yytext);
+    }    
+    else{ 
         ptr->counter++;
+    }
+    //printf("Get Id %s\n", yytext);
+    return IDENTIFIER;
+
 }
 {comment} {
     printf("%s\n", yytext);
@@ -136,7 +177,7 @@ error .
 {DL_comma} return DL_COMMA;   
 {DL_semicol} return DL_SEMICOL;
 {DL_dot} return DL_DOT;
-{error} printf("Read string %s with ERR \n", yytext);/* return ERROR; */
+{error} {printf("Read string %s with ERR in line %d\n", yytext, linenumber); exit(1); }
 
 %%
 

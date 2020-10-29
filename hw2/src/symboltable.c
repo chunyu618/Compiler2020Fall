@@ -65,23 +65,26 @@ void insertID(char *name){
 	symptr->counter=1;
 }
 
-void printSym(symtab* ptr) 
-{
-	    printf(" Name = %s \n", ptr->lexeme);
-	    printf(" References = %d \n", ptr->counter);
+int compare(const void *a, const void *b){
+    return strcmp((*(symtab**)a)->lexeme, (*(symtab**)b)->lexeme);
 }
 
 void printSymTab()
 {
-    int i;
+    symtab **symList = (symtab**)malloc(sizeof(symtab*) * TABLE_SIZE);
     printf("----- Symbol Table ---------\n");
-    for (i=0; i<TABLE_SIZE; i++){
-        symtab* symptr;
-	    symptr = hash_table[i];
-	    while (symptr != NULL){
-            printf("====>  index = %d \n", i);
-	        printSym(symptr);
+    int numberOfID = 0;
+    for(int i=0; i<TABLE_SIZE; i++){
+        symtab* symptr = hash_table[i];
+	    //printf("while\n");
+        while (symptr != NULL){
+            symList[numberOfID] = symptr; 
 	        symptr=symptr->front;
+            numberOfID++;
 	    }
+    }
+    qsort(symList, numberOfID, sizeof(symtab*), compare);
+    for(int i = 0; i < numberOfID; i++){
+        printf("%s\t\t%d\n", symList[i]->lexeme, symList[i]->counter);
     }
 }
