@@ -1,3 +1,4 @@
-/hw2/src/*.o
+./hw2/src/*.o
 scanner
-/hw2/src/*.o
+./hw3/src/*.o
+./hw3/src/.*
