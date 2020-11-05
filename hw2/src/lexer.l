@@ -177,7 +177,7 @@ error .
 {DL_comma} return DL_COMMA;   
 {DL_semicol} return DL_SEMICOL;
 {DL_dot} return DL_DOT;
-{error} {printf("Read string %s with ERR in line %d\n", yytext, linenumber); exit(1); }
+{error} {printf("[ERROR] Read undefined string %s\n", yytext); exit(1); }
 
 %%
 

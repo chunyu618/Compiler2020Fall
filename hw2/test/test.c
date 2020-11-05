@@ -8,7 +8,7 @@ int func(int a, int b)
 int main()
 {
 	/* 1: this is just a sample */
-    int c, d;
+    int c, d = 123;
 	float f,g;
 	char s[64] = "This is a /*This is a comment inside String*/ string.{!?}";
     char s2[64] = "There is a \n in this string.";
@@ -33,12 +33,13 @@ int main()
 	write(d);
 	d = 0;  /* 3: this is * the end\n\n ***/
     d = 123;
-    /***** 4: this is comment *****/
+    /***** 4: this *is* \*a\ comment *****/
     /*
      * one
      * two
      * three
      */
-     /* /* A */ */
+    /* /* A */ */
+    char s[123] = "\""; 
     return 0;
 }
