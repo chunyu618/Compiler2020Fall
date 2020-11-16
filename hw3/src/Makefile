@@ -1,5 +1,5 @@
 TARGET = parser
-OBJECT = parser.tab.c parser.tab.o lex.yy.c alloc.o functions.o
+OBJECT = parser.tab.c parser.tab.o lex.yy.c alloc.o functions.o parser.tab.h parser.output
 CC = gcc -g
 LEX = flex
 YACC = bison -v

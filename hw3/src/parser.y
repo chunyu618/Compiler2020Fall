@@ -197,6 +197,10 @@ function_decl	: type ID MK_LPAREN param_list MK_RPAREN MK_LBRACE block MK_RBRACE
                 | VOID ID MK_LPAREN param_list MK_RPAREN MK_LBRACE block MK_RBRACE      
                     {
                         /*TODO*/
+                        $$ = makeDeclNode(FUNCTION_DECL);
+                        AST_NODE* parameterList = Allocate(PARAM_LIST_NODE);
+                        makeChild(parameterList, $4);
+                        makeFamily($$, 4, makeIDNode("void", NORMAL_ID), makeIDNode($2, NORMAL_ID), parameterList, $7);
                     }
                 | type ID MK_LPAREN  MK_RPAREN MK_LBRACE block MK_RBRACE 
                     {
@@ -207,6 +211,9 @@ function_decl	: type ID MK_LPAREN param_list MK_RPAREN MK_LBRACE block MK_RBRACE
                 | VOID ID MK_LPAREN  MK_RPAREN MK_LBRACE block MK_RBRACE 
                     {
                         /*TODO*/
+                        $$ = makeDeclNode(FUNCTION_DECL);
+                        AST_NODE* emptyParameterList = Allocate(PARAM_LIST_NODE);
+                        makeFamily($$, 4, makeIDNode("void", NORMAL_ID), makeIDNode($2, NORMAL_ID), emptyParameterList, $6);
                     } 
                 ;
 
@@ -217,6 +224,7 @@ param_list	: param_list MK_COMMA  param
             | param	
                 {
                     /*TODO*/
+                    $$ = $1;
                 }
             ;
 
@@ -228,6 +236,8 @@ param		: type ID
             | type ID dim_fn 
                 {
                     /*TODO*/
+                    $$ = makeDeclNode(FUNCTION_PARAMETER_DECL);
+                    makeFamily($$, 2, $1, makeChild(makeIDNode($2, ARRAY_ID), $3));
                 }
             ;
 dim_fn		: MK_LB expr_null MK_RB 
@@ -243,6 +253,7 @@ dim_fn		: MK_LB expr_null MK_RB
 expr_null	:expr 
                 {
                     /*TODO*/
+                    $$ = $1;
                 }
             |
                 {
@@ -253,6 +264,8 @@ expr_null	:expr
 block           : decl_list stmt_list 
                     {
                         /*TODO*/
+                        $$ = Allocate(BLOCK_NODE);
+                        makeFamily($$, 2, makeChild(Allocate(VARIABLE_DECL_LIST_NODE, $1)), makeChild(Allocate(STMT_LIST_NODE, $2)));
                     }
                 | stmt_list  
                     {
@@ -266,16 +279,19 @@ block           : decl_list stmt_list
                     }
                 |   {
                         /*TODO*/
+                        $$ = Allocate(BLOCK_NODE);
                     }
                 ;
  
 decl_list	: decl_list decl 
                 {
                         /*TODO*/
+                        $$ = makeSibling($1, $2);
                 }
             | decl 
                 {
                         /*TODO*/
+                        $$ = $1;
                 }
             ;
 
@@ -292,20 +308,28 @@ decl		: type_decl
 type_decl 	: TYPEDEF type id_list MK_SEMICOLON  
                 {
                     /*TODO*/
+                    $$ = Allocate(TYPE_DECL);
+                    makeFamily($$, 2, $2, $3);
                 }
             | TYPEDEF VOID id_list MK_SEMICOLON 
                 {
                     /*TODO*/
+                    $$ = Allocate(TYPE_DECL);
+                    makefamily($$, 2, makeIDNode("void", NORMAL_ID), $3);
                 }
             ;
 
 var_decl	: type init_id_list MK_SEMICOLON 
                 {
                     /*TODO*/
+                    $$ = Allocate(VARIABLE_DECL);
+                    makeFamily($$, 2, $1, $2);
                 }
             | ID id_list MK_SEMICOLON
                 {
                     /*TODO*/
+                    $$ = Allocate(VARIABLE_DECL);
+                    makeFamily($$, 2, makeIDNode($1, NORMAL_ID), $2);
                 }
             ;
 
@@ -326,14 +350,17 @@ id_list		: ID
             | id_list MK_COMMA ID 
                 {
                     /*TODO*/
+                    $$ = makeSibling($1, makeIDNode($3, NORMAL_ID));
                 }
             | id_list MK_COMMA ID dim_decl
                 {
                     /*TODO*/
+                    $$ = makeSibling($1, makeChild(makeIDNode($3, ARRAY_ID), $4));
                 }
             | ID dim_decl
                 {
                     /*TODO*/
+                    $$ = makeChild(makeChild($1, ARRAY_ID), $2);
                 }
 		;
 dim_decl	: MK_LB cexpr MK_RB 
@@ -423,6 +450,10 @@ stmt		: MK_LBRACE block MK_RBRACE
                     /*TODO*/
                 }
             /*TODO: | While Statement */
+            | WHILE MK_LPAREN nonempty_relop_expr_list MK_RPAREN stmt
+                {
+                    /*TODO*/
+                }
             | FOR MK_LPAREN assign_expr_list MK_SEMICOLON relop_expr_list MK_SEMICOLON assign_expr_list MK_RPAREN stmt
                 {
                     /*TODO*/
