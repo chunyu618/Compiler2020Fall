@@ -366,10 +366,15 @@ id_list		: ID
 dim_decl	: MK_LB cexpr MK_RB 
                 {
                     /*TODO*/
+                    $$ = $2;
                 } 
             /*TODO: Try if you can define a recursive production rule
-            | .......
+            | ......
             */
+            | dim_decl MK_LB cexpr MK_RB
+                {
+                    $$ = makeSibling($1, $3);
+                }
             ;
 cexpr		: cexpr OP_PLUS mcexpr 
                 {
@@ -379,43 +384,56 @@ cexpr		: cexpr OP_PLUS mcexpr
             | cexpr OP_MINUS mcexpr
                 {
                     /*TODO*/
+                    $$ = makeExprNode(BINARY_OPERATION, BINARY_OP_SUB);
+                    makeFamily($$, 2, $1, $3);
                 } 
             | mcexpr 
                 {
                     /*TODO*/
+                    $$ = $1;
                 }
             ;  
 mcexpr		: mcexpr OP_TIMES cfactor 
                 {
                     /*TODO*/
+                    $$ = makeExprNode(BINARY_OPERATION, BINARY_OP_MUL);
+                    makeFamily($$, 2, $1, $3);
                 }
             | mcexpr OP_DIVIDE cfactor 
                 {
                     /*TODO*/
+                    $$ = makeExprNode(BINARY_OPERATION, BINARY_OP_DIV);
+                    makeFamily($$, 2, $1, $3);
                 }
             | cfactor 
                 {
                     /*TODO*/
+                    $$ = $1;
                 }
             ;
         
 cfactor:	CONST 
                 {
                     /*TODO*/
+                    $$ = Allocate(CONST_VALUE_NODE);
+                    $$->semantic.const1 = $1;
                 }
             | MK_LPAREN cexpr MK_RPAREN 
                 {
                     /*TODO*/
+                    $$ = $2;
                 }
             ;
 
 init_id_list	: init_id 
                     {
                         /*TODO*/
+                        $$ = $1;
                     }
                 | init_id_list MK_COMMA init_id 
                     {
                         /*TODO*/
+                        $$ = makeSibling($1, $3);
                     }
                 ;
 
@@ -426,56 +444,81 @@ init_id		: ID
             | ID dim_decl 
                 {
                     /*TODO*/
+                    $$ = makeChild(makeIDNode($1, ARRAY_ID), $2); 
                 }
             | ID OP_ASSIGN relop_expr 
                 {
                     /*TODO*/
+                    $$ = makeChild(makeIDNode($1, WITH_INIT_ID), $3);
                 }
             ;
 
 stmt_list	: stmt_list stmt 
                 {
                     /*TODO*/
+                    $$ = makeSibling($1, $2);
                 }
             | stmt
                 {
                     /*TODO*/
+                    $$ = $1;
                 }
             ;
-
-
 
 stmt		: MK_LBRACE block MK_RBRACE 
                 {
                     /*TODO*/
+                    $$ = $2;
                 }
             /*TODO: | While Statement */
             | WHILE MK_LPAREN nonempty_relop_expr_list MK_RPAREN stmt
                 {
                     /*TODO*/
+                    $$ = makeStmtNode(WHILE_STMT);
+                    makeFamily($$, 2, $3, $5);
                 }
             | FOR MK_LPAREN assign_expr_list MK_SEMICOLON relop_expr_list MK_SEMICOLON assign_expr_list MK_RPAREN stmt
                 {
                     /*TODO*/
+                    $$ = makeStmtNode(FOR_STMT);
+                    makeFamily($$, 4, $3, $5, $7, $9);
                 }
             | var_ref OP_ASSIGN relop_expr MK_SEMICOLON
                 {
                     /*TODO*/
+                    $$ = makeStmtNode(ASSIGN_STMT);
+                    makeFamily($$, 2, $1, $3);
                 }
             /*TODO: | If Statement */
+            | IF MK_LPAREN nonempty_relop_expr_list MK_RPAREN stmt
+                {
+                    /*TODO*/
+                    $$ = makeStmtNode(IF_STMT);
+                    makeFamily($$, 3, $3, $5, Allocate(NULL_NODE));
+                }
             /*TODO: | If then else */
+            | IF MK_LPAREN nonempty_relop_expr_list MK_RPAREN stmt ELSE stmt
+                {
+                    /*TODO*/
+                    $$ = makeStmtNode(IF_STMT);
+                    makeFamily($$, 3, $3, $5, $7);
+                }
             /*TODO: | function call */
             | MK_SEMICOLON 
                 {
                     /*TODO*/
+                    $$ = Allocate(NUL_NODE);
                 }
             | RETURN MK_SEMICOLON  
                 {
                     /*TODO*/
+                    $$ = makeStmtNode(RETURN_STMT);
                 }
             | RETURN relop_expr MK_SEMICOLON
                 {
                     /*TODO*/
+                    $$ = makeStmtNode(RETURN_STMT);
+                    makeChild($$, $2);
                 }
             ;
 
