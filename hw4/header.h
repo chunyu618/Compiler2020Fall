@@ -169,5 +169,7 @@ typedef struct AST_NODE AST_NODE;
 
 AST_NODE *Allocate(AST_TYPE type);
 void semanticAnalysis(AST_NODE *root);
+void printNode(AST_NODE *root, int level, int levelCount[]);
+void printLevel(int level, int levelCount[]);
 
 #endif

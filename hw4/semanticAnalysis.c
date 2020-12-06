@@ -143,7 +143,9 @@ void semanticAnalysis(AST_NODE *root)
 {
     //printTable();
     printf("----------Print Over----------\n");
-    processProgramNode(root);
+    int levelCount[32] = {};
+    printNode(root, 0, levelCount);
+    //processProgramNode(root);
 }
 
 
