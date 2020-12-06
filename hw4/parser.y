@@ -555,6 +555,7 @@ stmt		: MK_LBRACE block MK_RBRACE
                 {
                     /*TODO*/
                     $$ = makeStmtNode(RETURN_STMT);
+                    makeChild($$, Allocate(NUL_NODE));
                 }
             | RETURN relop_expr MK_SEMICOLON
                 {
@@ -849,8 +850,16 @@ dim_list	: dim_list MK_LB expr MK_RB
 int main(int argc, char *argv[]){
     yyin = fopen(argv[1],"r");
     yyparse();
-    printf("%s\n", "Parsing completed. No errors found.");
-    printGV(prog, NULL);
+    // printGV(prog, NULL);
+     
+    initializeSymbolTable();
+     
+    semanticAnalysis(prog);
+     
+    symbolTableEnd();
+    if (!g_anyErrorOccur) {
+       printf("Parsing completed. No errors found.\n");
+    }
     return 0;
 } /* main */
 
