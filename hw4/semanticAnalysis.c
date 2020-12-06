@@ -7,6 +7,8 @@
 // You only need to check for errors stated in the hw4 document. //
 int g_anyErrorOccur = 0;
 
+char *DATA_TYPE_string[] = {"int", "float", "void"};
+
 DATA_TYPE getBiggerType(DATA_TYPE dataType1, DATA_TYPE dataType2);
 void processProgramNode(AST_NODE *programNode);
 void processVariableDeclListNode(AST_NODE *declListNode);
@@ -70,18 +72,57 @@ typedef enum ErrorMsgKind
     PASS_SCALAR_TO_ARRAY
 } ErrorMsgKind;
 
-void printErrorMsgSpecial(AST_NODE* node1, char* name2, ErrorMsgKind errorMsgKind)
+void printErrorMsgSpecial(AST_NODE* node, char* name2, ErrorMsgKind errorMsgKind)
 {
     g_anyErrorOccur = 1;
-    printf("Error found in line %d\n", node1->linenumber);
-    /*
+    printf("Error found in line %d\n", node->linenumber);
+    
     switch(errorMsgKind)
     {
-    default:
-        printf("Unhandled case in void printErrorMsg(AST_NODE* node, ERROR_MSG_KIND* errorMsgKind)\n");
-        break;
+        case SYMBOL_REDECLARE:
+            printf("Error found in line%d.\n", node->linenumber);
+            printf("redefinition of '%s'.\n", getIdByNode(node));
+            break;
+        case SYMBOL_UNDECLARED:
+            printf("Error found in line%d.\n", node->linenumber);
+            printf("use of undeclared idnetifier '%s'.\n", getIdByNode(node));
+            break;
+        case TOO_FEW_ARGUMENTS:
+            printf("Error found in line%d.\n", node->linenumber);
+            printf("no matching function for call '%s'.\n", getIdByNode(node));
+            break;
+        case TOO_MANY_ARGUMENTS:
+            printf("Error found in line%d.\n", node->linenumber);
+            printf("no matching function for call '%s'.\n", getIdByNode(node));
+            break;
+        case RETURN_TYPE_UNMATCH:
+            printf("Warning found in line%d.\n", node->linenumber);
+            printf("implicit conversion turns floating-point number intot integer: '%s' to '%s'", DATA_TYPE_string[node->dataType], DATA_TYPE_string[node->dataType]);
+            break;
+        case NOT_ARRAY:
+            printf("Error found in line%d.\n", node->linenumber);
+            printf("subscripted value is not an array, pointer, or vector.\n");
+            break;
+        case NOT_ASSIGNABLE:
+            printf("Error found in line%d.\n", node->linenumber);
+            printf("array type '%s [%d]' is not assignable.\n", DATA_TYPE_string[node->dataType], node->semantic_value.identifierSemanticValue.symbolTableEntry->attribute->attr.typeDescriptor->properties.arrayProperties.dimension);
+            break;
+        case ARRAY_SIZE_NOT_INT:
+            printf("Error found in line%d.\n", node->linenumber);
+            printf("array subscript is not an integer.\n");
+            break;
+        case PASS_ARRAY_TO_SCALAR:
+            printf("Error found in line%d.\n", node->linenumber);
+            printf("no matching function for call '%s'.\n", getIdByNode(node));
+            break;
+        case PASS_SCALAR_TO_ARRAY:
+            printf("Error found in line%d.\n", node->linenumber);
+            printf("no matching function for call '%s'.\n", getIdByNode(node));
+            break;
+        default:
+            printf("Unhandled case in void printErrorMsg(AST_NODE* node, ERROR_MSG_KIND* errorMsgKind)\n");
     }
-    */
+    
 }
 
 

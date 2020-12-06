@@ -15,6 +15,7 @@ typedef enum DATA_TYPE
     ERROR_TYPE
 } DATA_TYPE;
 
+
 typedef enum IDENTIFIER_KIND
 {
     NORMAL_ID, //function Name, uninitialized scalar variable
