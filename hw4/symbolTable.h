@@ -12,7 +12,7 @@
 #define SYMBOL_TABLE_SYS_LIB_READ "read"
 #define SYMBOL_TABLE_SYS_LIB_FREAD "fread"
 #define HASH_TABLE_SIZE 256
-
+#define TABLE_STACK_SIZE 32
 
 typedef enum SymbolAttributeKind{
     VARIABLE_ATTRIBUTE,
@@ -78,14 +78,21 @@ typedef struct SymbolTableEntry{
 
 typedef struct SymbolTable
 {
-    SymbolTableEntry* hashTable[HASH_TABLE_SIZE];
+    SymbolTableEntry* hashTable[HASH_TABLE_SIZE];    
+    /*
     SymbolTableEntry** scopeDisplay;
     int currentLevel;
     int scopeDisplayElementCount;
+    */
 } SymbolTable;
 
+typedef struct TableStack{
+    SymbolTable entry[TABLE_STACK_SIZE];
+    int currentScope;
+} TableStack;
 
-void initializeSymbolTable();
+
+void initializeSymbolTableStack();
 void symbolTableEnd();
 SymbolTableEntry* retrieveSymbol(char* symbolName);
 SymbolTableEntry* enterSymbol(char* symbolName, SymbolAttribute* attribute);
@@ -94,4 +101,5 @@ int declaredLocally(char* symbolName);
 void openScope();
 void closeScope();
 
+void printTable();
 #endif

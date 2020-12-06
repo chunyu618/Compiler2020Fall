@@ -91,10 +91,10 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
     */
 }
 
-
 void semanticAnalysis(AST_NODE *root)
 {
-    processProgramNode(root);
+    printTable();    
+    //processProgramNode(root);
 }
 
 

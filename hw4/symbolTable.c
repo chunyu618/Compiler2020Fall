@@ -14,7 +14,8 @@ int HASH(char * str) {
 	return (idx & (HASH_TABLE_SIZE-1));
 }
 
-SymbolTable symbolTable;
+//SymbolTable symbolTable;
+TableStack tableStack;
 
 SymbolTableEntry* newSymbolTableEntry(int nestingLevel)
 {
@@ -37,8 +38,11 @@ void enterIntoHashTrain(int hashIndex, SymbolTableEntry* entry)
 {
 }
 
-void initializeSymbolTable()
-{
+void initializeSymbolTableStack(){
+    tableStack.currentScope = 0;
+    for(int i = 0; i < HASH_TABLE_SIZE; i++){
+        tableStack.entry[0].hashTable[i]->name = NULL;
+    }
 }
 
 void symbolTableEnd()
@@ -68,4 +72,23 @@ void openScope()
 
 void closeScope()
 {
+}
+
+void printTable(){
+    for(int i = 0; i < tableStack.currentScope; i++){
+        printf("----------In scope %d----------\n", i);
+        SymbolTable entry = tableStack.entry[i];
+        for(int j = 0; j < TABLE_STACK_SIZE; j++){
+            printf("-----In hash value %d-----\n", j);
+            SymbolTableEntry *tmp = entry.hashTable[i];
+            while(tmp->name != NULL){
+                printf("Symbol Name %s\n", tmp->name);
+            }
+            printf("NULL\n");
+        }
+    }
+}
+
+__inline__ SymbolTable* currentTable(){
+    return &tableStack.entry[tableStack.currentScope];
 }
