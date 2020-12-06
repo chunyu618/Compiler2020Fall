@@ -7,6 +7,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include "header.h"
+#include "symbolTable.h"
+
 int linenumber = 1;
 AST_NODE *prog;
 int yylex();
@@ -852,11 +854,11 @@ int main(int argc, char *argv[]){
     yyparse();
     // printGV(prog, NULL);
      
-    //initializeSymbolTableStack();
+    initializeSymbolTableStack();
      
     semanticAnalysis(prog);
      
-    //symbolTableEnd();
+    symbolTableEnd();
     if (!g_anyErrorOccur) {
        printf("Parsing completed. No errors found.\n");
     }

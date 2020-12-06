@@ -11,8 +11,11 @@
 #define SYMBOL_TABLE_VOID_NAME "void"
 #define SYMBOL_TABLE_SYS_LIB_READ "read"
 #define SYMBOL_TABLE_SYS_LIB_FREAD "fread"
-#define HASH_TABLE_SIZE 256
-#define TABLE_STACK_SIZE 32
+#define HASH_TABLE_SIZE 256 // Max number of a hash table
+#define TABLE_STACK_SIZE 32 // Max number of a table stack
+#define SEGMENT_NUM 32 // Max number of a name space
+#define SEGMENT_SIZE 1024 // Max number of a segment
+
 
 typedef enum SymbolAttributeKind{
     VARIABLE_ATTRIBUTE,
@@ -91,6 +94,11 @@ typedef struct TableStack{
     int currentScope;
 } TableStack;
 
+typedef struct SegNameSpace{
+    char *segments[SEGMENT_NUM];
+    int segIndex;
+    int currentOffset;
+} SegNameSpace;
 
 void initializeSymbolTableStack();
 void symbolTableEnd();
@@ -101,5 +109,9 @@ int declaredLocally(char* symbolName);
 void openScope();
 void closeScope();
 
+SymbolTable *currentTable();
 void printTable();
+void initializeSegNameSpace();
+void newSegment();
+void printError(char *errMsg);
 #endif

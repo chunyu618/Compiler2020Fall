@@ -9,11 +9,12 @@ int g_anyErrorOccur = 0;
 
 DATA_TYPE getBiggerType(DATA_TYPE dataType1, DATA_TYPE dataType2);
 void processProgramNode(AST_NODE *programNode);
+void processVariableDeclListNode(AST_NODE *declListNode);
 void processDeclarationNode(AST_NODE* declarationNode);
 void declareIdList(AST_NODE* typeNode, SymbolAttributeKind isVariableOrTypeAttribute, int ignoreArrayFirstDimSize);
 void declareFunction(AST_NODE* returnTypeNode);
 void processDeclDimList(AST_NODE* variableDeclDimList, TypeDescriptor* typeDescriptor, int ignoreFirstDimSize);
-void processTypeNode(AST_NODE* typeNode);
+DATA_TYPE processTypeNode(AST_NODE* typeNode);
 void processBlockNode(AST_NODE* blockNode);
 void processStmtNode(AST_NODE* stmtNode);
 void processGeneralNode(AST_NODE *node);
@@ -34,6 +35,12 @@ void processConstValueNode(AST_NODE* constValueNode);
 void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue);
 void evaluateExprValue(AST_NODE* exprNode);
 
+static __inline__ char *getIdByNode(AST_NODE *node){
+    if(node->nodeType == IDENTIFIER_NODE){
+        return node->semantic_value.identifierSemanticValue.identifierName;
+    }
+    return NULL;
+}
 
 typedef enum ErrorMsgKind
 {
@@ -93,8 +100,9 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
 
 void semanticAnalysis(AST_NODE *root)
 {
-    printTable();    
-    //processProgramNode(root);
+    //printTable();
+    printf("----------Print Over----------\n");
+    processProgramNode(root);
 }
 
 
@@ -108,22 +116,78 @@ DATA_TYPE getBiggerType(DATA_TYPE dataType1, DATA_TYPE dataType2)
 }
 
 
-void processProgramNode(AST_NODE *programNode)
-{
+void processProgramNode(AST_NODE *programNode){
+    for(AST_NODE *node = programNode->child; node != NULL; node = node->rightSibling){
+        switch(node->nodeType){
+            case VARIABLE_DECL_LIST_NODE:
+                processVariableDeclListNode(node);
+                break;
+            case DECLARATION_NODE:
+                processDeclarationNode(node);
+                break;
+            default:
+                printError("Invalid program");
+        }
+    }
+    printf("process over\n");
 }
 
-void processDeclarationNode(AST_NODE* declarationNode)
-{
+void processVariableDeclListNode(AST_NODE *declListNode){
+    AST_NODE *declNode = declListNode->child;
+    while(declNode != NULL){
+        // process declaration.
+        processDeclarationNode(declNode);
+        declNode = declNode->rightSibling;
+    }
+}
+
+void processDeclarationNode(AST_NODE* declNode){
+    if(declNode->nodeType != DECLARATION_NODE){
+        char tmp[32] = {};
+        sprintf(tmp, "Unexpected node type %d\n", declNode->nodeType);
+        printError(tmp);
+    }
+    int declKind = declNode->semantic_value.declSemanticValue.kind;
+    switch(declKind){
+        case VARIABLE_DECL:
+            // variable declaration
+            declareIdList(declNode, VARIABLE_ATTRIBUTE, 0);
+            break;
+        case TYPE_DECL:
+            // type declaration
+            declareIdList(declNode, TYPE_ATTRIBUTE, 0);
+            break;
+        case FUNCTION_DECL:
+            declareFunction(declNode);
+            break;
+        default:
+            printError("Invalid declaration type");
+    }
+}
+
+DATA_TYPE processTypeNode(AST_NODE *typeNode){
+    char *name = getIdByNode(typeNode);
+    SymbolTableEntry* entry = retrieveSymbol(name);
+    if(entry != NULL){
+        if(entry->attribute->attributeKind != TYPE_ATTRIBUTE){
+            return ERROR_TYPE;
+        }
+        else{
+            typeNode->semantic_value.identifierSemanticValue.symbolTableEntry = entry;
+            return entry->attribute->attr.typeDescriptor->properties.dataType;
+        }
+    }
+    return ERROR_TYPE;
 }
 
 
-void processTypeNode(AST_NODE* idNodeAsType)
-{
-}
-
-
-void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTypeAttribute, int ignoreArrayFirstDimSize)
-{
+void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTypeAttribute, int ignoreArrayFirstDimSize){
+    if(isVariableOrTypeAttribute == VARIABLE_ATTRIBUTE){
+    
+    }
+    else if(isVariableOrTypeAttribute == TYPE_ATTRIBUTE){
+    
+    }
 }
 
 void checkAssignOrExpr(AST_NODE* assignOrExprRelatedNode)
