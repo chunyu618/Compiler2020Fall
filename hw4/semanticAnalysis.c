@@ -237,9 +237,11 @@ DATA_TYPE processTypeNode(AST_NODE *typeNode){
     SymbolTableEntry* entry = retrieveSymbol(name);
     if(entry != NULL){
         if(entry->attribute->attributeKind != TYPE_ATTRIBUTE){
+            printf("return ERROR_TYPE");
             return ERROR_TYPE;
         }
         else{
+            printf("ELSE");
             typeNode->semantic_value.identifierSemanticValue.symbolTableEntry = entry;
             return entry->attribute->attr.typeDescriptor->properties.dataType;
         }

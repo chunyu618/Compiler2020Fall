@@ -56,19 +56,18 @@ int enterNameSpace(char *symbolName){
 }
 
 void enterIntoHashChain(int hashIndex, SymbolTableEntry* entry){
-    //SymbolTableEntry *table = currentTable();
-    if(currentTable()->hashTable[hashIndex] == NULL){
-        currentTable()->hashTable[hashIndex] = entry;
+    SymbolTableEntry **head = &(currentTable()->hashTable[hashIndex]);
+    if(*head == NULL){
+        *head = entry;
         printf("--------%d\n", currentTable()->hashTable[hashIndex]->nameLength);
         return;
     }
-    /*
-    while(head->nextInHashChain != NULL){
-        head = head->nextInHashChain;
+   
+    while((*head)->nextInHashChain != NULL){
+        *head = (*head)->nextInHashChain;
     }
-    head->nextInHashChain = entry;
-    entry->prevInHashChain = head;
-    */
+    (*head)->nextInHashChain = entry;
+    entry->prevInHashChain = *head;
 }
 
 void initializeSymbolTableStack(){
@@ -91,7 +90,7 @@ SymbolTableEntry* retrieveSymbol(char* symbolName){
         SymbolTable table = tableStack.entry[i];
         SymbolTableEntry *entry = table.hashTable[hashValue];
         while(entry != NULL){
-            if(strlen(symbolName) == entry->nameLength && strncpy(symbolName, getName(entry->segIndex), entry->nameLength) == 0){
+            if(strlen(symbolName) == entry->nameLength && strncmp(symbolName, getName(entry->segIndex), entry->nameLength) == 0){
                 return entry;
             }
             entry = entry->nextInHashChain;
@@ -143,16 +142,17 @@ void printTable(){
     for(int i = 0; i <= tableStack.currentScope; i++){
         printf("----------In scope %d----------\n", i);
         SymbolTable entry = tableStack.entry[i];
-        for(int j = 0; j < TABLE_STACK_SIZE; j++){
+        for(int j = 0; j < HASH_TABLE_SIZE; j++){
             printf("-----In hash value %d-----\n", j);
-            SymbolTableEntry *tmp = entry.hashTable[i];
+            SymbolTableEntry *tmp = entry.hashTable[j];
             while(tmp != NULL){
                 char name[32] = {};
                 strncpy(name, getName(tmp->segIndex), tmp->nameLength);
                 name[tmp->nameLength] = '\0';
                 printf("Symbol Name %s\n", name);
+                tmp = tmp->nextInHashChain;
             }
-            printf("NULL\n");
+            //printf("NULL\n");
         }
     }
 }
