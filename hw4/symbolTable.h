@@ -73,9 +73,10 @@ typedef struct SymbolTableEntry{
     struct SymbolTableEntry* nextInSameLevel;
     struct SymbolTableEntry* sameNameInOuterLevel;
 
-    char* name;
+    int segIndex;
+    int nameLength;
     SymbolAttribute* attribute;
-    int nestingLevel;
+    int scope;
 
 } SymbolTableEntry;
 
@@ -108,10 +109,14 @@ void removeSymbol(char* symbolName);
 int declaredLocally(char* symbolName);
 void openScope();
 void closeScope();
+int enterNameSpace(char *symbolName);
 
 SymbolTable *currentTable();
+char* getName();
 void printTable();
 void initializeSegNameSpace();
 void newSegment();
 void printError(char *errMsg);
+int makeIndex(int offset, int segment);
+char *currentEmpty();
 #endif

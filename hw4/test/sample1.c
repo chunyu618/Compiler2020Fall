@@ -1,3 +1,5 @@
+int a = 1;
+float b = 1.1;
 void f1(int a, int v){
     
 }

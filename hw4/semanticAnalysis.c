@@ -139,13 +139,36 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
     */
 }
 
+SymbolAttribute *newAttribute(SymbolAttributeKind kind){
+    SymbolAttribute *newAttr = (SymbolAttribute*)malloc(sizeof(SymbolAttribute));
+    newAttr->attributeKind = kind;
+    return newAttr;
+}
+
+TypeDescriptor *newTypeDesc(TypeDescriptorKind kind){
+    TypeDescriptor *newDesc = (TypeDescriptor*)malloc(sizeof(TypeDescriptor));
+    newDesc->kind = kind;
+    return newDesc;
+}
+
+SymbolTableEntry *insertType(char *name, DATA_TYPE type){
+    SymbolAttribute *attr = newAttribute(TYPE_ATTRIBUTE);
+    TypeDescriptor *desc = newTypeDesc(SCALAR_TYPE_DESCRIPTOR);
+    desc->properties.dataType = type;
+    attr->attr.typeDescriptor = desc;
+    return enterSymbol(name, attr);
+}
+
 void semanticAnalysis(AST_NODE *root)
 {
-    //printTable();
-    printf("----------Print Over----------\n");
+    //printf("----------Print Over----------\n");
     int levelCount[32] = {};
-    printNode(root, 0, levelCount);
-    //processProgramNode(root);
+    //printNode(root, 0, levelCount);
+    insertType(SYMBOL_TABLE_INT_NAME, INT_TYPE);
+    insertType(SYMBOL_TABLE_FLOAT_NAME, FLOAT_TYPE);
+    insertType(SYMBOL_TABLE_VOID_NAME, VOID_TYPE);
+    processProgramNode(root); 
+    printTable();
 }
 
 
@@ -210,6 +233,7 @@ void processDeclarationNode(AST_NODE* declNode){
 
 DATA_TYPE processTypeNode(AST_NODE *typeNode){
     char *name = getIdByNode(typeNode);
+    printf("Type Name is %s\n", name);
     SymbolTableEntry* entry = retrieveSymbol(name);
     if(entry != NULL){
         if(entry->attribute->attributeKind != TYPE_ATTRIBUTE){
@@ -225,8 +249,12 @@ DATA_TYPE processTypeNode(AST_NODE *typeNode){
 
 
 void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTypeAttribute, int ignoreArrayFirstDimSize){
+    printf("Id List\n");
     if(isVariableOrTypeAttribute == VARIABLE_ATTRIBUTE){
-    
+        AST_NODE* typeNode = declarationNode->child;
+        //if(typeNode == NULL) printf("lalala");
+        DATA_TYPE datatype = processTypeNode(typeNode);
+        printf("%d\n", datatype);
     }
     else if(isVariableOrTypeAttribute == TYPE_ATTRIBUTE){
     
