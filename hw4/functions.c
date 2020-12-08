@@ -199,6 +199,7 @@ int printGVNode(FILE *fp, AST_NODE* node, int count)
 }
 
 void printNode(AST_NODE *root, int level, int levelCount[]){
+    //printf("%d", level);
     AST_NODE *child;
     switch(root->nodeType){
         case PROGRAM_NODE:
@@ -263,11 +264,27 @@ void printNode(AST_NODE *root, int level, int levelCount[]){
             levelCount[level] = 1;
             printLevel(level, levelCount);
             printf("-- Block Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
             break;
         case VARIABLE_DECL_LIST_NODE:    
             levelCount[level] = 1;
             printLevel(level, levelCount);
             printf("-- Variables Declaration List Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
             break;
         case STMT_LIST_NODE:
             levelCount[level] = 1;

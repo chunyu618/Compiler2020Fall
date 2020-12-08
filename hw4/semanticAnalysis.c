@@ -163,12 +163,12 @@ void semanticAnalysis(AST_NODE *root)
 {
     //printf("----------Print Over----------\n");
     int levelCount[32] = {};
-    //printNode(root, 0, levelCount);
+    printNode(root, 0, levelCount);
     insertType(SYMBOL_TABLE_INT_NAME, INT_TYPE);
     insertType(SYMBOL_TABLE_FLOAT_NAME, FLOAT_TYPE);
     insertType(SYMBOL_TABLE_VOID_NAME, VOID_TYPE);
     processProgramNode(root); 
-    printTable();
+    //printTable();
 }
 
 

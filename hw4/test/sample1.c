@@ -9,8 +9,13 @@ void f2(float b, float c){
 }
 
 int main() {
-    int a = "test"; /* error */
-    a = "test"; /* error */
-    write("test");
-    write("test" + 3); /* error */
+    float a; 
+    int b = 123;    
+    a = 1 + 2 + 3;
+    for(;;){
+        a = a + 1;
+    }
+    while(a){
+        b = b + 1;
+    }
 }
