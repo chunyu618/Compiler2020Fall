@@ -11,6 +11,7 @@
 #define SYMBOL_TABLE_VOID_NAME "void"
 #define SYMBOL_TABLE_SYS_LIB_READ "read"
 #define SYMBOL_TABLE_SYS_LIB_FREAD "fread"
+#define SYMBOL_TABLE_SYS_LIB_WRITE "write"
 #define HASH_TABLE_SIZE 256 // Max number of a hash table
 #define TABLE_STACK_SIZE 32 // Max number of a table stack
 #define SEGMENT_NUM 32 // Max number of a name space

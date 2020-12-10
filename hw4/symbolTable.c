@@ -4,6 +4,13 @@
 #include <stdio.h>
 // This file is for reference only, you are not required to follow the implementation. //
 
+FunctionSignature readSign = { .parametersCount = 0, .parameterList = NULL, .returnType = INT_TYPE};
+FunctionSignature freadSign = { .parametersCount = 0, .parameterList = NULL, .returnType = FLOAT_TYPE};
+FunctionSignature writeSign = { .parametersCount = 1, .parameterList = NULL, .returnType = VOID_TYPE};
+SymbolAttribute readAttr = {FUNCTION_SIGNATURE, {.functionSignature = &readSign}};
+SymbolAttribute freadAttr = {FUNCTION_SIGNATURE, {.functionSignature = &freadSign}};
+SymbolAttribute writeAttr = {FUNCTION_SIGNATURE, {.functionSignature = &writeSign}};
+
 int HASH(char *str) {
 	int idx=0;
 	while (*str){
@@ -59,7 +66,7 @@ void enterIntoHashChain(int hashIndex, SymbolTableEntry* entry){
     SymbolTableEntry **head = &(currentTable()->hashTable[hashIndex]);
     if(*head == NULL){
         *head = entry;
-        printf("--------%d\n", currentTable()->hashTable[hashIndex]->nameLength);
+        //printf("--------%d\n", currentTable()->hashTable[hashIndex]->nameLength);
         return;
     }
    
@@ -73,9 +80,6 @@ void enterIntoHashChain(int hashIndex, SymbolTableEntry* entry){
 void initializeSymbolTableStack(){
     initializeSegNameSpace();
     tableStack.currentScope = 0;
-    for(int i = 0; i < HASH_TABLE_SIZE; i++){
-        tableStack.entry[0].hashTable[i] = NULL;
-    }
 }
 
 void symbolTableEnd(){
@@ -100,15 +104,13 @@ SymbolTableEntry* retrieveSymbol(char* symbolName){
 }
 
 SymbolTableEntry* enterSymbol(char* symbolName, SymbolAttribute* attribute){
-    // Calculate hash value
     int hashValue = HASH(symbolName);
 
-    // Check if redeclared
-    SymbolTableEntry* tmp = retrieveSymbol(symbolName);
-    if(tmp != NULL && tmp->scope == tableStack.currentScope){
+    // Check whether symbol is redeclared
+    if(declaredLocally(symbolName)){
         return NULL;
     }
-    
+
     // Initialize a new table entry
     SymbolTableEntry *newEntry = newSymbolTableEntry(tableStack.currentScope);
     newEntry->segIndex = enterNameSpace(symbolName);
@@ -126,21 +128,34 @@ void removeSymbol(char* symbolName)
 {
 }
 
-int declaredLocally(char* symbolName)
-{
+int declaredLocally(char* symbolName){
+    int hashIndex = HASH(symbolName);
+    int len = strlen(symbolName);
+    SymbolTableEntry *head = currentTable()->hashTable[hashIndex];
+    while(head != NULL){
+        SymbolTableEntry *entry = head;
+        if(len == entry->nameLength && !strncmp(symbolName, getName(entry->segIndex), entry->nameLength)){
+            return 1;
+        }    
+        head = head->nextInHashChain;
+    }
+    return 0;
 }
 
-void openScope()
-{
+void openScope(){
+    tableStack.currentScope += 1;
+    for(int i = 0; i < HASH_TABLE_SIZE; i++){
+        tableStack.entry[tableStack.currentScope].hashTable[i] = NULL;
+    }
 }
 
-void closeScope()
-{
+void closeScope(){
+    tableStack.currentScope -= 1;
 }
 
 void printTable(){
     for(int i = 0; i <= tableStack.currentScope; i++){
-        printf("----------In scope %d----------\n", i);
+        //printf("----------In scope %d----------\n", i);
         SymbolTable entry = tableStack.entry[i];
         for(int j = 0; j < HASH_TABLE_SIZE; j++){
             printf("-----In hash value %d-----\n", j);

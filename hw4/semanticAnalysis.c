@@ -6,8 +6,14 @@
 // This file is for reference only, you are not required to follow the implementation. //
 // You only need to check for errors stated in the hw4 document. //
 int g_anyErrorOccur = 0;
+AST_NODE *g_currentFunctionDecl = NULL;
 
 char *DATA_TYPE_string[] = {"int", "float", "void"};
+
+extern SymbolAttribute readAttr;
+extern SymbolAttribute freadAttr;
+extern SymbolAttribute writeAttr;
+
 
 DATA_TYPE getBiggerType(DATA_TYPE dataType1, DATA_TYPE dataType2);
 void processProgramNode(AST_NODE *programNode);
@@ -26,16 +32,16 @@ void checkForStmt(AST_NODE* forNode);
 void checkAssignmentStmt(AST_NODE* assignmentNode);
 void checkIfStmt(AST_NODE* ifNode);
 void checkWriteFunction(AST_NODE* functionCallNode);
-void checkFunctionCall(AST_NODE* functionCallNode);
+DATA_TYPE checkFunctionCall(AST_NODE* functionCallNode);
 DATA_TYPE processExprRelatedNode(AST_NODE* exprRelatedNode);
 void checkParameterPassing(Parameter* formalParameter, AST_NODE* actualParameter);
 void checkReturnStmt(AST_NODE* returnNode);
-void processExprNode(AST_NODE* exprNode);
-void processVariableLValue(AST_NODE* idNode);
+DATA_TYPE processExprNode(AST_NODE* exprNode);
+DATA_TYPE processVariableLValue(AST_NODE* idNode);
 void processVariableRValue(AST_NODE* idNode);
-void processConstValueNode(AST_NODE* constValueNode);
+DATA_TYPE processConstValueNode(AST_NODE* constValueNode);
 void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue);
-void evaluateExprValue(AST_NODE* exprNode);
+void evaluateExprValue(AST_NODE* exprNode, DATA_TYPE dataType);
 
 static __inline__ char *getIdByNode(AST_NODE *node){
     if(node->nodeType == IDENTIFIER_NODE){
@@ -89,11 +95,15 @@ void printErrorMsgSpecial(AST_NODE* node, char *name2, ErrorMsgKind errorMsgKind
 }
 
 
-void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
-{
+void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind){
+    SymbolTableEntry *entry;
     g_anyErrorOccur = 1;
     printf("Error found in line %d\n", node->linenumber);
     switch(errorMsgKind){
+        case NOT_FUNCTION_NAME:
+            entry = retrieveSymbol(getIdByNode(node));
+            printf("called object type '%s' is not a function or function pointer.\n", DATA_TYPE_string[entry->attribute->attr.typeDescriptor->properties.dataType]);
+            break;
         case SYMBOL_REDECLARE:
             printf("redefinition of '%s'.\n", getIdByNode(node));
             break;
@@ -158,6 +168,9 @@ void semanticAnalysis(AST_NODE *root)
     insertType(SYMBOL_TABLE_INT_NAME, INT_TYPE);
     insertType(SYMBOL_TABLE_FLOAT_NAME, FLOAT_TYPE);
     insertType(SYMBOL_TABLE_VOID_NAME, VOID_TYPE);
+    enterSymbol(SYMBOL_TABLE_SYS_LIB_READ, &readAttr);
+    enterSymbol(SYMBOL_TABLE_SYS_LIB_FREAD, &freadAttr);
+    enterSymbol(SYMBOL_TABLE_SYS_LIB_WRITE, &writeAttr);
     processProgramNode(root); 
     //printTable();
 }
@@ -224,7 +237,7 @@ void processDeclarationNode(AST_NODE* declNode){
 
 DATA_TYPE processTypeNode(AST_NODE *typeNode){
     char *name = getIdByNode(typeNode);
-    printf("Type Name is %s\n", name);
+    //printf("Type Name is %s\n", name);
     SymbolTableEntry* entry = retrieveSymbol(name);
     if(entry != NULL){
         if(entry->attribute->attributeKind != TYPE_ATTRIBUTE){
@@ -256,7 +269,7 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
         }
         for(AST_NODE *id = typeNode->rightSibling; id != NULL; id = id->rightSibling){
             int count[32] = {};
-            printNode(id, 0, count);    
+            //printNode(id, 0, count);    
             AST_NODE *exprNode;
             TypeDescriptor *typeDesc;
             SymbolAttribute *symbolAttr = newAttribute(VARIABLE_ATTRIBUTE);
@@ -367,34 +380,150 @@ void checkWriteFunction(AST_NODE* functionCallNode)
 {
 }
 
-void checkFunctionCall(AST_NODE* functionCallNode)
-{
+DATA_TYPE checkFunctionCall(AST_NODE* functionCallNode){
+    AST_NODE *functionNameNode = functionCallNode->child;
+    SymbolTableEntry *entry = retrieveSymbol(getIdByNode(functionNameNode));
+    if(entry == NULL){
+        printErrorMsg(functionNameNode, SYMBOL_UNDECLARED);
+        return ERROR_TYPE;
+    }
+
+    /* To check whether ID is a function name*/
+    if(entry->attribute->attributeKind != FUNCTION_SIGNATURE){
+        printErrorMsg(functionNameNode, NOT_FUNCTION_NAME);
+        return ERROR_TYPE;
+    }
+   
+    /* Check parameters*/
+    
+    
 }
 
 void checkParameterPassing(Parameter* formalParameter, AST_NODE* actualParameter)
 {
 }
 
-
+/* Process EXPR_NODE, CONST_VALUE_NODE, STMT_NODE, IDENTIFIER_NODE, NUL_NODE*/
 DATA_TYPE processExprRelatedNode(AST_NODE* exprRelatedNode){
-
+    AST_NODE *leftValueNode;
+    switch(exprRelatedNode->nodeType){
+        case EXPR_NODE:
+            return processExprNode(exprRelatedNode);
+        case CONST_VALUE_NODE:
+            return processConstValueNode(exprRelatedNode);
+        case STMT_NODE:
+            switch(exprRelatedNode->semantic_value.stmtSemanticValue.kind){
+                case FUNCTION_CALL_STMT:
+                    return checkFunctionCall(exprRelatedNode);
+                case ASSIGN_STMT:
+                    leftValueNode = exprRelatedNode->child;
+                    DATA_TYPE leftDataType = processExprRelatedNode(leftValueNode);
+                    if(leftDataType == ERROR_TYPE || leftDataType == VOID_TYPE){
+                        return ERROR_TYPE;
+                    }
+                    DATA_TYPE rightDataType = processExprRelatedNode(leftValueNode->rightSibling);
+                    if(rightDataType != leftDataType) {
+                        if(rightDataType == CONST_STRING_TYPE){
+                            printf("[DEBUG] cannot be assigned as a string.\n");
+                            return ERROR_TYPE;
+                        }
+                        else if(rightDataType == VOID_TYPE){
+                            printf("[DEBUG] cannot be assigned as a void type.\n");
+                            return ERROR_TYPE;
+                        }
+                        else if(rightDataType == ERROR_TYPE){
+                            return ERROR_TYPE;
+                        }
+                    }
+                    return leftDataType;
+                default:
+                    printf("[DEBUG] Broken AST.\n");
+                    exit(1);
+            }
+        case IDENTIFIER_NODE:
+            return processVariableLValue(exprRelatedNode);
+        default:
+            printf("[DEBUG] Unexpected ExprRelated Node.\n");
+            return ERROR_TYPE;
+    }
 }
 
 void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue)
 {
 }
 
-void evaluateExprValue(AST_NODE* exprNode)
-{
+void evaluateExprValue(AST_NODE* exprNode, DATA_TYPE dataType){
 }
 
 
-void processExprNode(AST_NODE* exprNode)
-{
+DATA_TYPE processExprNode(AST_NODE* exprNode){
+    if(exprNode->nodeType != EXPR_NODE){
+        printf("[DEBUG] wrong node type in processExprNode.\n");
+        exit(1);
+    }
+
+    DATA_TYPE dataType, leftDataType, rightDataType;
+    switch(exprNode->semantic_value.exprSemanticValue.kind){
+        case BINARY_OPERATION:
+            leftDataType = processExprRelatedNode(exprNode->child);
+            rightDataType = processExprRelatedNode(exprNode->child->rightSibling);
+            if(leftDataType == VOID_TYPE || rightDataType == VOID_TYPE){
+                printf("[DEBUG] void operation.\n");
+                return ERROR_TYPE;
+            }
+            if(leftDataType == CONST_STRING_TYPE || rightDataType == CONST_STRING_TYPE){
+                printf("[DEBUG] constant string operation.\n");
+                return ERROR_TYPE;
+            }
+            if(leftDataType == ERROR_TYPE || rightDataType == ERROR_TYPE){
+                return ERROR_TYPE;
+            }
+
+            switch(exprNode->semantic_value.exprSemanticValue.op.binaryOp){
+                /* expor */
+                case BINARY_OP_ADD: 
+                case BINARY_OP_SUB: 
+                case BINARY_OP_MUL: 
+                case BINARY_OP_DIV:
+                    dataType = getBiggerType(leftDataType, rightDataType);
+                    evaluateExprValue(exprNode, dataType);
+                    break;
+
+                /* relop */
+                case BINARY_OP_OR:
+                case BINARY_OP_AND:
+                case BINARY_OP_EQ:
+                case BINARY_OP_GE:
+                case BINARY_OP_LE:
+                case BINARY_OP_NE:
+                case BINARY_OP_GT:
+                case BINARY_OP_LT:
+                    dataType = INT_TYPE;
+                    evaluateExprValue(exprNode, dataType);        
+                    break;
+            }
+            break;
+        case UNARY_OPERATION:
+            dataType = processExprRelatedNode(exprNode->child);
+            if(dataType != INT_TYPE || dataType != FLOAT_TYPE){
+                dataType = ERROR_TYPE;
+                break;
+            }
+            if(exprNode->semantic_value.exprSemanticValue.op.unaryOp == UNARY_OP_LOGICAL_NEGATION){
+                dataType = INT_TYPE;
+            }
+            evaluateExprValue(exprNode, dataType);
+            break;
+        default:
+            printf("[DEBUG] Invalid operation.\n");
+            exit(1);
+    }
+    exprNode->dataType = dataType;
+    return dataType;
 }
 
 
-void processVariableLValue(AST_NODE* idNode)
+DATA_TYPE processVariableLValue(AST_NODE* idNode)
 {
 }
 
@@ -403,8 +532,17 @@ void processVariableRValue(AST_NODE* idNode)
 }
 
 
-void processConstValueNode(AST_NODE* constValueNode)
-{
+DATA_TYPE processConstValueNode(AST_NODE* constValueNode){
+    switch(constValueNode->semantic_value.const1->const_type){
+        case INTEGERC:
+            return INT_TYPE;
+        case FLOATC:
+            return FLOAT_TYPE;
+        case STRINGC:
+            return CONST_STRING_TYPE;
+        default:
+            return ERROR_TYPE;
+    }
 }
 
 
@@ -430,7 +568,73 @@ void processGeneralNode(AST_NODE *node)
 int processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ignoreFirstDimSize){
 }
 
+void declareFunction(AST_NODE* declarationNode){
+    /* Check if node is a function decalration node */
+    if(declarationNode->nodeType != DECLARATION_NODE || declarationNode->semantic_value.declSemanticValue.kind != FUNCTION_DECL){
+        printf("[DEBUG] not function declaration.\n");
+        exit(1);
+    }
 
-void declareFunction(AST_NODE* declarationNode)
-{
+    /* Initialize the function signature information */
+    AST_NODE *ret_node, *name_node, *param_node, *block_node;
+    retNode = declarationNode->child;
+    nameNode = retNode->rightSibling;
+    paramNode = nameNode->rightSibling;
+    blockNode = paramNode->rightSibling;
+
+    /* Check return type is already defined */
+    FunctionSignature *func = (FunctionSignature*)malloc(sizeof(struct FunctionSignature));
+    func->returnType = processTypeNode(retNode);
+    if(func->returnType == ERROR_TYPE){
+        printf("[DEBUG] undefined return type.\n");
+        return;
+    }
+
+    /* Enter into the symbol table */
+    SymbolAttribute *attr = newAttribute(FUNCTION_SIGNATURE);
+    attr->attr.functionSignature = func;
+    if(enterSymbol(getIdByNode(name_node), attr) == NULL){
+        printErrorMsg(name_node, SYMBOL_REDECLARE);
+        return;
+    }
+
+    openScope();
+    g_currentFunctionDecl = declarationNode;
+
+    /* Chaining parameters list  */
+    func->parametersCount = 0;
+    Parameter *newParam = NULL, *lastParam = NULL;
+    for(AST_NODE *paramList = paramNode->child ; paramList != NULL ; paramList = paramList->rightSibling){
+        func->parametersCount++;
+        newParam = (Parameter*)malloc(sizeof(Parameter));
+
+        AST_NODE *paramTypeNode = paramList->child;
+        AST_NODE *paramIdNode = paramTypeNode->rightSibling;
+        DATA_TYPE paramType = processTypeNode(paramTypeNode);
+        if(paramType == ERROR_TYPE){
+            printf("[DEBUG] Type of parameter is not defined.\n");
+        }
+        else if(paramType == VOID_TYPE){
+            printf("[DEBUG] Type of parameter is void.\n");
+        }
+        TypeDescriptor *desc;
+        switch(paramIdNode->semantic_value.identifierSemanticValue.kind){
+            case NORMAL_ID:
+                desc = newTypeDesc(SCALAR_TYPE_DESCRIPTOR);
+                desc->properties.dataType = paramType;
+                attr = newAttribute(VARIABLE_ATTRIBUTE);
+                attr->attr.typeDescriptor = desc;
+                if(enterSymbol(getIdByNode(paramIdNode), attr) == NULL){
+                    printErrorMsg(paramIdNode, SYMBOL_REDECLARE);
+                    break;
+                }
+                newParam->type = desc;
+                newParam->parameterName = getIdNode(paramIdNode);
+                break;
+
+            case ARRAY_ID:
+                desc = newTypeDesc(ARRAY_TYPE_DESCRIPTOR);
+                break;
+        }
+    }
 }
