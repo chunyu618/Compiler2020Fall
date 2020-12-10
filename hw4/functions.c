@@ -241,6 +241,14 @@ void printNode(AST_NODE *root, int level, int levelCount[]){
             levelCount[level] = 0;
             printLevel(level + 1, levelCount);
             printf("-- name %s\n", name);
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
             break;
         case PARAM_LIST_NODE:
             levelCount[level] = 1;

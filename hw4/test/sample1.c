@@ -1,5 +1,12 @@
-int a = 1;
+typedef int intint;
+typedef int intint;
+intint lalala;
+
+int a = 123, aa = 2, aaa = 3, aaaa, aaaaaa[32];
+int a;
 float b = 1.1;
+int ccc;
+char s1[32];
 void f1(int a, int v){
     
 }

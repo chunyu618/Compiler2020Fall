@@ -15,7 +15,7 @@ void processVariableDeclListNode(AST_NODE *declListNode);
 void processDeclarationNode(AST_NODE* declarationNode);
 void declareIdList(AST_NODE* typeNode, SymbolAttributeKind isVariableOrTypeAttribute, int ignoreArrayFirstDimSize);
 void declareFunction(AST_NODE* returnTypeNode);
-void processDeclDimList(AST_NODE* variableDeclDimList, TypeDescriptor* typeDescriptor, int ignoreFirstDimSize);
+int processDeclDimList(AST_NODE* variableDeclDimList, TypeDescriptor* typeDescriptor, int ignoreFirstDimSize);
 DATA_TYPE processTypeNode(AST_NODE* typeNode);
 void processBlockNode(AST_NODE* blockNode);
 void processStmtNode(AST_NODE* stmtNode);
@@ -27,7 +27,7 @@ void checkAssignmentStmt(AST_NODE* assignmentNode);
 void checkIfStmt(AST_NODE* ifNode);
 void checkWriteFunction(AST_NODE* functionCallNode);
 void checkFunctionCall(AST_NODE* functionCallNode);
-void processExprRelatedNode(AST_NODE* exprRelatedNode);
+DATA_TYPE processExprRelatedNode(AST_NODE* exprRelatedNode);
 void checkParameterPassing(Parameter* formalParameter, AST_NODE* actualParameter);
 void checkReturnStmt(AST_NODE* returnNode);
 void processExprNode(AST_NODE* exprNode);
@@ -55,6 +55,7 @@ typedef enum ErrorMsgKind
     RETURN_ARRAY,
     VOID_VARIABLE,
     TYPEDEF_VOID_ARRAY,
+    TYPE_REDECLARE,
     PARAMETER_TYPE_UNMATCH,
     TOO_FEW_ARGUMENTS,
     TOO_MANY_ARGUMENTS,
@@ -72,56 +73,18 @@ typedef enum ErrorMsgKind
     PASS_SCALAR_TO_ARRAY
 } ErrorMsgKind;
 
-void printErrorMsgSpecial(AST_NODE* node, char* name2, ErrorMsgKind errorMsgKind)
+void printErrorMsgSpecial(AST_NODE* node, char *name2, ErrorMsgKind errorMsgKind)
 {
     g_anyErrorOccur = 1;
     printf("Error found in line %d\n", node->linenumber);
-    
-    switch(errorMsgKind)
-    {
-        case SYMBOL_REDECLARE:
-            printf("Error found in line%d.\n", node->linenumber);
-            printf("redefinition of '%s'.\n", getIdByNode(node));
-            break;
-        case SYMBOL_UNDECLARED:
-            printf("Error found in line%d.\n", node->linenumber);
-            printf("use of undeclared idnetifier '%s'.\n", getIdByNode(node));
-            break;
-        case TOO_FEW_ARGUMENTS:
-            printf("Error found in line%d.\n", node->linenumber);
-            printf("no matching function for call '%s'.\n", getIdByNode(node));
-            break;
-        case TOO_MANY_ARGUMENTS:
-            printf("Error found in line%d.\n", node->linenumber);
-            printf("no matching function for call '%s'.\n", getIdByNode(node));
-            break;
-        case RETURN_TYPE_UNMATCH:
-            printf("Warning found in line%d.\n", node->linenumber);
-            printf("implicit conversion turns floating-point number intot integer: '%s' to '%s'", DATA_TYPE_string[node->dataType], DATA_TYPE_string[node->dataType]);
-            break;
-        case NOT_ARRAY:
-            printf("Error found in line%d.\n", node->linenumber);
-            printf("subscripted value is not an array, pointer, or vector.\n");
-            break;
-        case NOT_ASSIGNABLE:
-            printf("Error found in line%d.\n", node->linenumber);
-            printf("array type '%s [%d]' is not assignable.\n", DATA_TYPE_string[node->dataType], node->semantic_value.identifierSemanticValue.symbolTableEntry->attribute->attr.typeDescriptor->properties.arrayProperties.dimension);
-            break;
-        case ARRAY_SIZE_NOT_INT:
-            printf("Error found in line%d.\n", node->linenumber);
-            printf("array subscript is not an integer.\n");
-            break;
-        case PASS_ARRAY_TO_SCALAR:
-            printf("Error found in line%d.\n", node->linenumber);
-            printf("no matching function for call '%s'.\n", getIdByNode(node));
-            break;
-        case PASS_SCALAR_TO_ARRAY:
-            printf("Error found in line%d.\n", node->linenumber);
-            printf("no matching function for call '%s'.\n", getIdByNode(node));
+    switch(errorMsgKind){
+        case TYPE_REDECLARE:
+            printf("typedef redefinition with different types (%s vs %s).\n", name2, DATA_TYPE_string[processTypeNode(node)]);
             break;
         default:
-            printf("Unhandled case in void printErrorMsg(AST_NODE* node, ERROR_MSG_KIND* errorMsgKind)\n");
-    }
+            break;
+    } 
+    
     
 }
 
@@ -130,13 +93,41 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
 {
     g_anyErrorOccur = 1;
     printf("Error found in line %d\n", node->linenumber);
-    /*
-    switch(errorMsgKind)
-    {
-        printf("Unhandled case in void printErrorMsg(AST_NODE* node, ERROR_MSG_KIND* errorMsgKind)\n");
-        break;
+    switch(errorMsgKind){
+        case SYMBOL_REDECLARE:
+            printf("redefinition of '%s'.\n", getIdByNode(node));
+            break;
+        case SYMBOL_UNDECLARED:
+            printf("use of undeclared idnetifier '%s'.\n", getIdByNode(node));
+            break;
+        case TOO_FEW_ARGUMENTS:
+            printf("no matching function for call '%s'.\n", getIdByNode(node));
+            break;
+        case TOO_MANY_ARGUMENTS:
+            printf("no matching function for call '%s'.\n", getIdByNode(node));
+            break;
+        case RETURN_TYPE_UNMATCH:
+            printf("Warning found in line%d.\n", node->linenumber);
+            printf("implicit conversion turns floating-point number intot integer: '%s' to '%s'", DATA_TYPE_string[node->dataType], DATA_TYPE_string[node->dataType]);
+            break;
+        case NOT_ARRAY:
+            printf("subscripted value is not an array, pointer, or vector.\n");
+            break;
+        case NOT_ASSIGNABLE:
+            printf("array type '%s [%d]' is not assignable.\n", DATA_TYPE_string[node->dataType], node->semantic_value.identifierSemanticValue.symbolTableEntry->attribute->attr.typeDescriptor->properties.arrayProperties.dimension);
+            break;
+        case ARRAY_SIZE_NOT_INT:
+            printf("array subscript is not an integer.\n");
+            break;
+        case PASS_ARRAY_TO_SCALAR:
+            printf("no matching function for call '%s'.\n", getIdByNode(node));
+            break;
+        case PASS_SCALAR_TO_ARRAY:
+            printf("no matching function for call '%s'.\n", getIdByNode(node));
+            break;
+        default:
+            printf("Unhandled case in void printErrorMsg(AST_NODE* node, ERROR_MSG_KIND* errorMsgKind)\n");
     }
-    */
 }
 
 SymbolAttribute *newAttribute(SymbolAttributeKind kind){
@@ -163,7 +154,7 @@ void semanticAnalysis(AST_NODE *root)
 {
     //printf("----------Print Over----------\n");
     int levelCount[32] = {};
-    printNode(root, 0, levelCount);
+    //printNode(root, 0, levelCount);
     insertType(SYMBOL_TABLE_INT_NAME, INT_TYPE);
     insertType(SYMBOL_TABLE_FLOAT_NAME, FLOAT_TYPE);
     insertType(SYMBOL_TABLE_VOID_NAME, VOID_TYPE);
@@ -237,11 +228,9 @@ DATA_TYPE processTypeNode(AST_NODE *typeNode){
     SymbolTableEntry* entry = retrieveSymbol(name);
     if(entry != NULL){
         if(entry->attribute->attributeKind != TYPE_ATTRIBUTE){
-            printf("return ERROR_TYPE");
             return ERROR_TYPE;
         }
         else{
-            printf("ELSE");
             typeNode->semantic_value.identifierSemanticValue.symbolTableEntry = entry;
             return entry->attribute->attr.typeDescriptor->properties.dataType;
         }
@@ -251,15 +240,103 @@ DATA_TYPE processTypeNode(AST_NODE *typeNode){
 
 
 void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTypeAttribute, int ignoreArrayFirstDimSize){
-    printf("Id List\n");
+    //printf("Id List\n");
     if(isVariableOrTypeAttribute == VARIABLE_ATTRIBUTE){
         AST_NODE* typeNode = declarationNode->child;
         //if(typeNode == NULL) printf("lalala");
-        DATA_TYPE datatype = processTypeNode(typeNode);
-        printf("%d\n", datatype);
+        DATA_TYPE dataType = processTypeNode(typeNode);
+        printf("%d\n", dataType);
+        if(dataType == ERROR_TYPE){
+            printf("[DEBUG] data type is error type.\n");
+            return;
+        } 
+        else if(dataType == VOID_TYPE){
+            printf("[DEBUG] data type is void type.\n");
+            return;
+        }
+        for(AST_NODE *id = typeNode->rightSibling; id != NULL; id = id->rightSibling){
+            int count[32] = {};
+            printNode(id, 0, count);    
+            AST_NODE *exprNode;
+            TypeDescriptor *typeDesc;
+            SymbolAttribute *symbolAttr = newAttribute(VARIABLE_ATTRIBUTE);
+            DATA_TYPE exprType;
+            switch(id->semantic_value.identifierSemanticValue.kind){
+                case NORMAL_ID:
+                    // Prepare symbol attribute
+                    typeDesc = newTypeDesc(SCALAR_TYPE_DESCRIPTOR);
+                    typeDesc->properties.dataType = dataType;
+                    symbolAttr->attr.typeDescriptor = typeDesc;
+                    
+                    // Enter into symbol table
+                    if(enterSymbol(getIdByNode(id), symbolAttr) == NULL){
+                        printErrorMsg(id, SYMBOL_REDECLARE);
+                    }
+                    break;
+                case WITH_INIT_ID:
+                    // Check expression type
+                    exprNode = id->child;
+                    exprType = processExprRelatedNode(exprNode);
+                    if(exprType == CONST_STRING_TYPE){
+                        //printfErrorMsg(exprNode, )
+                        printf("[DEBUG] expression type is const string.\n");
+                        break;
+                    }
+                    else if (exprType == VOID_TYPE){
+                        printf("[DEBIG] expression type is void.\n");
+                        break;
+                    }
+                    else if(exprType == ERROR_TYPE){
+                        printf("[DEBUG] expression type is error type.\n");
+                        break;
+                    }
+                    
+                    // Prepare symbol attribute
+                    typeDesc = newTypeDesc(SCALAR_TYPE_DESCRIPTOR);
+                    typeDesc->properties.dataType = dataType;
+                    symbolAttr->attr.typeDescriptor = typeDesc;
+                    
+                    // Enter into symbol table
+                     if(enterSymbol(getIdByNode(id), symbolAttr) == NULL){
+                        printErrorMsg(id, SYMBOL_REDECLARE);
+                    }
+                    break;
+                case ARRAY_ID:
+                    // Prepare symbol attribute
+                    typeDesc = newTypeDesc(ARRAY_TYPE_DESCRIPTOR);
+                    typeDesc->properties.arrayProperties.elementType = dataType;
+                    processDeclDimList(id->child, typeDesc, 0);
+                    symbolAttr->attr.typeDescriptor = typeDesc;
+                    
+                    // Enter into symbol table
+                    if(enterSymbol(getIdByNode(id), symbolAttr) == NULL){
+                        printErrorMsg(id, SYMBOL_REDECLARE);
+                    }                  
+                    break;
+                default:
+                    printf("[DEBUG] unexpected kind of variable.\n");
+                    break;
+            }
+        }
     }
     else if(isVariableOrTypeAttribute == TYPE_ATTRIBUTE){
-    
+        AST_NODE *typeNode = declarationNode->child;
+        DATA_TYPE dataType = processTypeNode(typeNode);
+        if(dataType == ERROR_TYPE){
+            printf("[DEBUG] Symbol is not a type.\n");
+        }
+        for(AST_NODE *id = typeNode->rightSibling; id != NULL; id = id->rightSibling){
+            if(insertType(getIdByNode(id), dataType) == NULL){
+                DATA_TYPE oldDataType = retrieveSymbol(getIdByNode(id))->attribute->attr.typeDescriptor->properties.dataType;
+                printf("%d %d\n", dataType, oldDataType);
+                if(dataType == oldDataType){
+                    printErrorMsg(id, SYMBOL_REDECLARE);
+                }
+                else{
+                    printErrorMsgSpecial(id, DATA_TYPE_string[dataType], TYPE_REDECLARE);
+                }
+            }
+        }
     }
 }
 
@@ -299,8 +376,8 @@ void checkParameterPassing(Parameter* formalParameter, AST_NODE* actualParameter
 }
 
 
-void processExprRelatedNode(AST_NODE* exprRelatedNode)
-{
+DATA_TYPE processExprRelatedNode(AST_NODE* exprRelatedNode){
+
 }
 
 void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue)
@@ -350,8 +427,7 @@ void processGeneralNode(AST_NODE *node)
 {
 }
 
-void processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ignoreFirstDimSize)
-{
+int processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ignoreFirstDimSize){
 }
 
 
