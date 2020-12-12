@@ -6,6 +6,7 @@
 // This file is for reference only, you are not required to follow the implementation. //
 // You only need to check for errors stated in the hw4 document. //
 int g_anyErrorOccur = 0;
+int g_suppressError = 0;
 AST_NODE *g_currentFunctionDecl = NULL;
 
 char *DATA_TYPE_string[] = {"int", "float", "void"};
@@ -34,7 +35,7 @@ void checkIfStmt(AST_NODE* ifNode);
 void checkWriteFunction(AST_NODE* functionCallNode);
 DATA_TYPE checkFunctionCall(AST_NODE* functionCallNode);
 DATA_TYPE processExprRelatedNode(AST_NODE* exprRelatedNode);
-void checkParameterPassing(Parameter* formalParameter, AST_NODE* actualParameter);
+void checkParameterPassing(Parameter* parameterList, AST_NODE* functionNameNode);
 void checkReturnStmt(AST_NODE* returnNode);
 DATA_TYPE processExprNode(AST_NODE* exprNode);
 DATA_TYPE processVariableLValue(AST_NODE* idNode);
@@ -211,6 +212,7 @@ void processVariableDeclListNode(AST_NODE *declListNode){
     }
 }
 
+/* Process all kinds of declaration and call corresponding declare function */
 void processDeclarationNode(AST_NODE* declNode){
     if(declNode->nodeType != DECLARATION_NODE){
         char tmp[32] = {};
@@ -228,6 +230,7 @@ void processDeclarationNode(AST_NODE* declNode){
             declareIdList(declNode, TYPE_ATTRIBUTE, 0);
             break;
         case FUNCTION_DECL:
+            // function declaration
             declareFunction(declNode);
             break;
         default:
@@ -235,6 +238,7 @@ void processDeclarationNode(AST_NODE* declNode){
     }
 }
 
+/* Check if the type is declared */
 DATA_TYPE processTypeNode(AST_NODE *typeNode){
     char *name = getIdByNode(typeNode);
     //printf("Type Name is %s\n", name);
@@ -251,7 +255,7 @@ DATA_TYPE processTypeNode(AST_NODE *typeNode){
     return ERROR_TYPE;
 }
 
-
+/* Declare identifier list of variable or type */
 void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTypeAttribute, int ignoreArrayFirstDimSize){
     //printf("Id List\n");
     if(isVariableOrTypeAttribute == VARIABLE_ATTRIBUTE){
@@ -380,6 +384,7 @@ void checkWriteFunction(AST_NODE* functionCallNode)
 {
 }
 
+/* Check if the function call is legal */
 DATA_TYPE checkFunctionCall(AST_NODE* functionCallNode){
     AST_NODE *functionNameNode = functionCallNode->child;
     SymbolTableEntry *entry = retrieveSymbol(getIdByNode(functionNameNode));
@@ -395,12 +400,109 @@ DATA_TYPE checkFunctionCall(AST_NODE* functionCallNode){
     }
    
     /* Check parameters*/
-    
-    
+    FunctionSignature *funcSign = entry->attribute->attr.functionSignature;
+    if(strncmp(getIdByNode(functionNameNode), "write", 6) == 0){
+        checkWriteFunction(functionNameNode);
+        return VOID_TYPE;
+    }
+    /* Give parameters while function doesn't need any parameter */
+    if(funcSign->parametersCount == 0){
+        if(functionNameNode->rightSibling->nodeType != NUL_NODE){
+            printErrorMsg(functionNameNode, TOO_MANY_ARGUMENTS);
+            return ERROR_TYPE;
+        }
+    }
+    else{
+        checkParameterPassing(funcSign->parameterList, functionNameNode);
+    }
+    return funcSign->returnType;
 }
 
-void checkParameterPassing(Parameter* formalParameter, AST_NODE* actualParameter)
-{
+void checkParameterPassing(Parameter* parameterList, AST_NODE* functionNameNode){
+    /* Get the first function parameter declaration node */
+    AST_NODE *argument = functionNameNode->rightSibling->child;
+    while(parameterList != NULL){
+        if(argument == NULL){
+            printErrorMsg(functionNameNode, TOO_FEW_ARGUMENTS);
+            break;
+        }
+        switch(argument->nodeType){
+            case CONST_VALUE_NODE:
+            case IDENTIFIER_NODE:
+            case EXPR_NODE:
+            case STMT_NODE:
+                if(parameterList->type->kind == SCALAR_TYPE_DESCRIPTOR){
+                    if(argument->nodeType == IDENTIFIER_NODE){
+                        SymbolTableEntry *entry = retrieveSymbol(getIdByNode(argument));
+                        if(entry->attribute->attributeKind == VARIABLE_ATTRIBUTE){
+                            if(entry->attribute->attr.typeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR){
+                                int argumentDim = entry->attribute->attr.typeDescriptor->properties.arrayProperties.dimension;
+                                int referenceDim = 0;
+                                if(argument->child != NULL){
+                                    referenceDim = processDeclDimList(argument->child, NULL, 0);
+                                }
+                                if(argumentDim > referenceDim){
+                                    printf("[DEBUG] array passed to scalar parameter.\n");
+                                    g_suppressError = 1;
+                                }
+                                else if(argumentDim < referenceDim){
+                                    printf("[DEBUG] incompatable array dimension.\n");
+                                    g_suppressError = 1;
+                                }
+                        }
+                    }
+                    DATA_TYPE argumentType = processExprRelatedNode(argument);
+                    if(argumentType == VOID_TYPE){
+                        printf("[DEBUG] Unexpected void type.\n");
+                    }
+                    else if(argumentType == CONST_STRING_TYPE){
+                        printf("[DEBUG] Unexpected const string type.\n");
+                    }
+                }
+                else if(parameterList->type->kind == ARRAY_TYPE_DESCRIPTOR){
+                    if(argument->nodeType == IDENTIFIER_NODE){
+                        SymbolTableEntry *entry = retrieveSymbol(getIdByNode(argument));
+                        if(entry->attribute->attributeKind == VARIABLE_ATTRIBUTE){
+                            if(entry->attribute->attr.typeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR){
+                                int argumentDim = entry->attribute->attr.typeDescriptor->properties.arrayProperties.dimension;
+                                int parameterDim = parameterList->type->properties.arrayProperties.dimension;
+                                int referenceDim = 0;
+                                if(argument->child != NULL){
+                                    referenceDim = processDeclDimList(argument->child, NULL, 0);
+                                }
+                                if(argumentDim == referenceDim){
+                                    printf("[DEBUG] Array passed to scalar parameter.\n");
+                                }
+                                else if(argumentDim < referenceDim || argumentDim - referenceDim != parameterDim){
+                                    printf("[DEBUG] Incompatable array dimension.\n");
+                                    g_suppressError = 1;
+                                }
+                        }
+                    }
+                    DATA_TYPE argumentType = processExprRelatedNode(argument);
+                    if(argumentType == VOID_TYPE){
+                        printf("[DEBUG] Unexpected void type \n");
+                    }
+                    else if(argumentType == CONST_STRING_TYPE){
+                        printf("[DEBUG] Unexpected const string type \n");
+                    }
+                    else if(argumentType != ERROR_TYPE){
+                        printf("[DEBUG] Array passed to scalar parameter.\n");
+                    }
+                }
+                argument = argument->rightSibling;
+                break;
+            default:
+                printf("[DEBUG] Broken AST.\n");
+                exit(1);
+        }
+        g_suppressError = 0;
+        parameterList = parameterList->next;
+    }
+    /* Get one more parameter out of expected */
+    if(argument != NULL){
+        printErrorMsg(functionNameNode, TOO_MANY_ARGUMENTS);
+    }
 }
 
 /* Process EXPR_NODE, CONST_VALUE_NODE, STMT_NODE, IDENTIFIER_NODE, NUL_NODE*/
@@ -455,7 +557,7 @@ void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue)
 void evaluateExprValue(AST_NODE* exprNode, DATA_TYPE dataType){
 }
 
-
+/* Process expression */
 DATA_TYPE processExprNode(AST_NODE* exprNode){
     if(exprNode->nodeType != EXPR_NODE){
         printf("[DEBUG] wrong node type in processExprNode.\n");
@@ -527,11 +629,12 @@ DATA_TYPE processVariableLValue(AST_NODE* idNode)
 {
 }
 
+
 void processVariableRValue(AST_NODE* idNode)
 {
 }
 
-
+/* Process constant value included int, float, string */
 DATA_TYPE processConstValueNode(AST_NODE* constValueNode){
     switch(constValueNode->semantic_value.const1->const_type){
         case INTEGERC:
@@ -550,9 +653,27 @@ void checkReturnStmt(AST_NODE* returnNode)
 {
 }
 
-
-void processBlockNode(AST_NODE* blockNode)
-{
+/* Process a block aka {} */
+void processBlockNode(AST_NODE* blockNode){
+    if(blockNode->nodeType != BLOCK_NODE){
+        printf("[DEBUG] Not a block.\n");
+        exit(1);
+    }
+    for(AST_NODE *block = blockNode->child ; block != NULL ; block = block->rightSibling){
+        switch(block->nodeType){
+            case VARIABLE_DECL_LIST_NODE:
+                processVariableDeclListNode(block);
+                break;
+            case STMT_LIST_NODE:
+                for(AST_NODE *stmt = block->child ; stmt != NULL ; stmt = stmt->rightSibling){
+                    processStmtNode(stmt);
+                }
+                break;
+            default:
+                printf("[DEBUG] Unexpected block type.\n");
+                break;
+        }
+    }
 }
 
 
@@ -568,6 +689,7 @@ void processGeneralNode(AST_NODE *node)
 int processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ignoreFirstDimSize){
 }
 
+/* Declare a new function */
 void declareFunction(AST_NODE* declarationNode){
     /* Check if node is a function decalration node */
     if(declarationNode->nodeType != DECLARATION_NODE || declarationNode->semantic_value.declSemanticValue.kind != FUNCTION_DECL){
@@ -629,12 +751,38 @@ void declareFunction(AST_NODE* declarationNode){
                     break;
                 }
                 newParam->type = desc;
-                newParam->parameterName = getIdNode(paramIdNode);
+                newParam->parameterName = getIdByNode(paramIdNode);
                 break;
 
             case ARRAY_ID:
                 desc = newTypeDesc(ARRAY_TYPE_DESCRIPTOR);
+                desc->properties.arrayProperties.elementType = paramType;
+                processDeclDimList(paramIdNode->child, desc, 1);
+                attr = newAttribute(VARIABLE_ATTRIBUTE);
+                attr->attr.typeDescriptor = desc;
+
+                if(enterSymbol(getIdByNode(paranIdNode), attr) == NULL){
+                    printErrorMsg(paramIdNode, SYMBOL_REDECLARE);
+                    break;
+                }
+                newParam->type = desc;
+                newParam->parameterName = getIdByNode(paramIdNode)
+                break;
+            default:
+                printf("[DEBUG] Unexpected type of variable.\n");
                 break;
         }
+        newParam->next = NULL;
+        if(lastParam == NULL){
+            func->parameterList = newParam;
+        }
+        else{
+            lastParam->next = newParam;
+        }
+        lastParam = newParam;
     }
+    processBlockNode(blockNode);
+    closeScope();
+    g_currentFunctionDecl = NULL;
+    return;
 }
