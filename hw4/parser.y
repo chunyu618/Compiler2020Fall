@@ -828,7 +828,7 @@ var_ref		: ID
             | ID dim_list 
                 {
                     /*TODO*/
-                    $$ = makeChild(makeIDNode($1, NORMAL_ID), $2);
+                    $$ = makeChild(makeIDNode($1, ARRAY_ID), $2);
                 }
             ;
 

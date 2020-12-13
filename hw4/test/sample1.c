@@ -1,16 +1,9 @@
-int a;
-int a(){
-
+int a(int lalala[123][456], int b[123][123][123]){
+    return 0;
 }
 
 int main() {
-    float a; 
-    int b = 123;    
-    a();
-    for(;;){
-        a = a + 1;
-    }
-    while(a){
-        b = b + 1;
-    }
+    int arr1[123][456];
+    int arr2[123][123][123];
+    a(arr1, arr2[2]);
 }
