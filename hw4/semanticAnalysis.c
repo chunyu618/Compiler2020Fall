@@ -162,6 +162,9 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind){
         case ARRAY_SIZE_NOT_INT:
             printf("array subscript is not an integer.\n");
             break;
+        case ARRAY_SIZE_NEGATIVE:
+            printf("'%s' declared as an array with a negative size.\n", getIdByNode(node));
+            break;
         case PASS_ARRAY_TO_SCALAR:
             printf("no matching function for call '%s'.\n", getIdByNode(node));
             break;
@@ -835,7 +838,69 @@ void evaluateExprValue(AST_NODE* exprNode, DATA_TYPE dataType){
         }
     }
     else if(exprNode->semantic_value.exprSemanticValue.kind == UNARY_OPERATION){
-        
+        AST_NODE *leftExpr = exprNode->child;
+        int leftInt;
+        float leftFloat;
+        DATA_TYPE leftDataType = getExprOrConstValue(leftExpr, &leftInt, &leftFloat);
+        if(leftDataType == ERROR_TYPE){
+            return;
+        }
+        if(leftDataType == INT_TYPE){
+            int val;
+            switch(exprNode->semantic_value.exprSemanticValue.op.unaryOp){
+                case UNARY_OP_POSITIVE:
+                    val = leftInt;
+                    break;
+                case UNARY_OP_NEGATIVE:
+                    val = -leftInt;
+                    break;
+                case UNARY_OP_LOGICAL_NEGATION:
+                    val = !(leftInt);
+                    break;
+            }
+            exprNode->semantic_value.exprSemanticValue.isConstEval = 1;
+            if(dataType == INT_TYPE){
+                exprNode->semantic_value.exprSemanticValue.constEvalValue.iValue = val;
+            }
+            else if(dataType == FLOAT_TYPE){
+                exprNode->semantic_value.exprSemanticValue.constEvalValue.fValue = (float)val;
+            }
+        }
+        else if(leftDataType == FLOAT_TYPE){
+            int ival = 0;
+            float fval = .0;
+            switch(exprNode->semantic_value.exprSemanticValue.op.unaryOp){
+                case UNARY_OP_POSITIVE:
+                    fval = leftFloat;
+                    break;
+                case UNARY_OP_NEGATIVE:
+                    fval = -leftFloat;
+                    break;
+                case UNARY_OP_LOGICAL_NEGATION:
+                    ival = !(leftFloat);
+                    break;
+            }
+            switch(exprNode->semantic_value.exprSemanticValue.op.unaryOp){
+                case UNARY_OP_POSITIVE:
+                case UNARY_OP_NEGATIVE:
+                    if(dataType == INT_TYPE){
+                        exprNode->semantic_value.exprSemanticValue.constEvalValue.iValue = (int)fval;
+                    }
+                    else if(dataType == FLOAT_TYPE){
+                        exprNode->semantic_value.exprSemanticValue.constEvalValue.fValue = fval;
+                    }
+                    break;
+                case UNARY_OP_LOGICAL_NEGATION:
+                    if(dataType == INT_TYPE){
+                        exprNode->semantic_value.exprSemanticValue.constEvalValue.iValue = ival;
+                    }
+                    else if(dataType == FLOAT_TYPE){
+                        exprNode->semantic_value.exprSemanticValue.constEvalValue.fValue = (float)ival;
+                    }
+                    break;
+            }
+            exprNode->semantic_value.exprSemanticValue.isConstEval = 1;
+        }
     }
 }
 
@@ -889,7 +954,7 @@ DATA_TYPE processExprNode(AST_NODE* exprNode){
             break;
         case UNARY_OPERATION:
             dataType = processExprRelatedNode(exprNode->child);
-            if(dataType != INT_TYPE || dataType != FLOAT_TYPE){
+            if(dataType != INT_TYPE && dataType != FLOAT_TYPE){
                 dataType = ERROR_TYPE;
                 break;
             }
@@ -941,7 +1006,7 @@ DATA_TYPE processVariableLValue(AST_NODE* idNode){
                 return ERROR_TYPE;
             }
             int referenceDim = processDeclDimList(idNode->child, NULL, 0);
-            printf("referenceDim is %d\n", referenceDim);
+            //printf("referenceDim is %d\n", referenceDim);
             if(referenceDim > descriptor->properties.arrayProperties.dimension){
                 printErrorMsg(idNode, NOT_ARRAY);
                 return ERROR_TYPE;
@@ -990,6 +1055,7 @@ void checkReturnStmt(AST_NODE* returnNode){
         case CONST_VALUE_NODE:
         case EXPR_NODE: 
             returnType = processExprRelatedNode(returnNode->child);
+            //printf("return type is %d, signature is %d\n", returnType, signature->returnType);
             if(returnType != signature->returnType){
                 if(returnType == FLOAT_TYPE && signature->returnType == INT_TYPE){
                     printWarnMsg(functionNameNode, RETURN_TYPE_UNMATCH);
@@ -1095,7 +1161,7 @@ int processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ign
                     if(idNode->semantic_value.const1->const_type != INTEGERC){
                         nameNode = idNode->parent;
                         printErrorMsg(nameNode, ARRAY_SIZE_NOT_INT);        
-                        size = -1;
+                        size = 0;
                     }
                     else{
                         size = idNode->semantic_value.const1->const_u.intval;
@@ -1106,10 +1172,11 @@ int processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ign
                     if(processExprRelatedNode(idNode) != INT_TYPE){
                         nameNode = idNode->parent;
                         printErrorMsg(nameNode, ARRAY_SIZE_NOT_INT);
-                        size = -1;
+                        size = 0;
                     }
                     else{
                         size = idNode->semantic_value.exprSemanticValue.constEvalValue.iValue;
+                        //printf("size is %d\n", size);
                     }
                     break;
                 case STMT_NODE:
@@ -1144,7 +1211,12 @@ int processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ign
                     break;
             }
             if(typeDescriptor != NULL){
-                typeDescriptor->properties.arrayProperties.sizeInEachDimension[dimension] = size;
+                if(size < 0){
+                    printErrorMsg(idNode->parent, ARRAY_SIZE_NEGATIVE);
+                }
+                else{
+                    typeDescriptor->properties.arrayProperties.sizeInEachDimension[dimension] = size;
+                }
             }
         }    
         dimension++;
