@@ -298,16 +298,40 @@ void printNode(AST_NODE *root, int level, int levelCount[]){
             levelCount[level] = 1;
             printLevel(level, levelCount);
             printf("-- Statements List Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
             break;
         case STMT_NODE:    
             levelCount[level] = 1;
             printLevel(level, levelCount);
             printf("-- Statement Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
             break;
         case EXPR_NODE:
             levelCount[level] = 1;
             printLevel(level, levelCount);
             printf("-- Expression Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
             break;
         case CONST_VALUE_NODE:
             levelCount[level] = 1;
@@ -318,11 +342,28 @@ void printNode(AST_NODE *root, int level, int levelCount[]){
             levelCount[level] = 1;
             printLevel(level, levelCount);
             printf("-- Non-empty Assignment Expression Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
             break;
         case NONEMPTY_RELOP_EXPR_LIST_NODE:    
             levelCount[level] = 1;
             printLevel(level, levelCount);
+            
             printf("-- Non-empty Relop Expression Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
             break;
         default:
             break;

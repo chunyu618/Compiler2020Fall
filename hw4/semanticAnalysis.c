@@ -116,6 +116,9 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind){
     if(g_suppressError){
         return;
     }
+    int dimension, dim;
+    char tmp[128] = {};
+    int index = 0;
     g_anyErrorOccur = 1;
     printf("Error found in line %d\n", node->linenumber);
     switch(errorMsgKind){
@@ -142,8 +145,16 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind){
         case NOT_ARRAY:
             printf("subscripted value is not an array, pointer, or vector.\n");
             break;
-        case NOT_ASSIGNABLE:            
-            printf("array type '%s []' is not assignable.\n", DATA_TYPE_string[node->dataType]);
+        case NOT_ASSIGNABLE:         
+            dimension = processDeclDimList(node->child, NULL, 0);
+            index = 0;
+            entry = retrieveSymbol(getIdByNode(node));
+            for(int i = 0; i < dimension; i++){
+                dim = entry->attribute->attr.typeDescriptor->properties.arrayProperties.sizeInEachDimension[i];
+                sprintf(&tmp[index], "[%d]", dim);
+                index = strlen(tmp);
+            }
+            printf("array type '%s %s' is not assignable.\n", DATA_TYPE_string[entry->attribute->attr.typeDescriptor->properties.arrayProperties.elementType], tmp);
             break;
         case ARRAY_SIZE_NOT_INT:
             printf("array subscript is not an integer.\n");
@@ -382,31 +393,87 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
     }
 }
 
-void checkAssignOrExpr(AST_NODE* assignOrExprRelatedNode)
-{
+void checkAssignOrExpr(AST_NODE* assignOrExprRelatedNode){
+    //printf("id name is %s\n", getIdByNode(assignOrExprRelatedNode));
+    //printf("In check Assign Or Expr node type is %s\n", NODE_TYPE_string[assignOrExprRelatedNode->nodeType]);
+    switch(assignOrExprRelatedNode->nodeType){
+        case IDENTIFIER_NODE:
+            processVariableLValue(assignOrExprRelatedNode);
+            break;
+        case STMT_NODE:
+            processStmtNode(assignOrExprRelatedNode);
+            break;
+        case EXPR_NODE:
+            processExprRelatedNode(assignOrExprRelatedNode);
+            break;
+        default:
+            printf("[DEBUG] Invalid node in for loop.\n");
+            break;
+    }
+    return;
 }
 
-void checkWhileStmt(AST_NODE* whileNode)
-{
+void checkWhileStmt(AST_NODE* whileNode){
+    processExprRelatedNode(whileNode->child);
+    processStmtNode(whileNode->child->rightSibling);
 }
 
 
-void checkForStmt(AST_NODE* forNode)
-{
+void checkForStmt(AST_NODE* forNode){
+    AST_NODE *current = forNode->child;
+    if(current->nodeType == NONEMPTY_ASSIGN_EXPR_LIST_NODE){
+        for(AST_NODE *part = current->child; part != NULL; part = part->rightSibling){
+            checkAssignOrExpr(part);
+        }
+    }
+    current = current->rightSibling;
+    if(current->nodeType == NONEMPTY_RELOP_EXPR_LIST_NODE){
+        for(AST_NODE *part = current->child; part != NULL; part = part->rightSibling){
+            checkAssignOrExpr(part);
+        }
+    }
+    current = current->rightSibling;
+    if(current->nodeType == NONEMPTY_ASSIGN_EXPR_LIST_NODE){
+        for(AST_NODE *part = current->child; part != NULL; part = part->rightSibling){
+            checkAssignOrExpr(part);
+        }
+    }
+    current = current->rightSibling;
+    processStmtNode(current);
 }
 
 
-void checkAssignmentStmt(AST_NODE* assignmentNode)
-{
+void checkAssignmentStmt(AST_NODE* assignmentNode){
+    
 }
 
 
-void checkIfStmt(AST_NODE* ifNode)
-{
+void checkIfStmt(AST_NODE* ifNode){
+    AST_NODE *current = ifNode->child;
+    processExprRelatedNode(current);
+    current = current->rightSibling;
+    processStmtNode(current);
+    current = current->rightSibling;
+    /* else */
+    if(current->nodeType != NUL_NODE){
+        processStmtNode(current);
+    }
 }
 
-void checkWriteFunction(AST_NODE* functionCallNode)
-{
+void checkWriteFunction(AST_NODE* functionCallNode){
+    if(functionCallNode->rightSibling->nodeType == NUL_NODE){
+        printErrorMsg(functionCallNode, TOO_FEW_ARGUMENTS);
+        return;
+    }
+    AST_NODE *argument = functionCallNode->rightSibling->child;
+    if(argument->rightSibling != NULL){
+        printErrorMsg(functionCallNode, TOO_MANY_ARGUMENTS);
+        return;
+    }
+    DATA_TYPE argumentType = processExprRelatedNode(argument);
+    if(argumentType == VOID_TYPE){
+        printf("[DEBUG] Void operation.\n");
+    }
 }
 
 /* Check if the function call is legal */
@@ -468,11 +535,13 @@ void checkParameterPassing(Parameter* parameterList, AST_NODE* functionNameNode)
                                     referenceDim = processDeclDimList(argument->child, NULL, 0);
                                 }
                                 if(argumentDim > referenceDim){
-                                    printf("[DEBUG] array passed to scalar parameter.\n");
+                                    printErrorMsg(argument, NOT_ASSIGNABLE);
+                                    //printf("[DEBUG] array passed to scalar parameter.\n");
                                     g_suppressError = 1;
                                 }
                                 else if(argumentDim < referenceDim){
-                                    printf("[DEBUG] incompatable array dimension.\n");
+                                    printErrorMsg(argument, NOT_ARRAY);
+                                    //printf("[DEBUG] incompatable array dimension.\n");
                                     g_suppressError = 1;
                                 }
                             }    
@@ -499,11 +568,16 @@ void checkParameterPassing(Parameter* parameterList, AST_NODE* functionNameNode)
                                     referenceDim = processDeclDimList(argument->child, NULL, 0);
                                 }
                                 //printf("argumentDim is %d, referenceDim is %d\n", argumentDim, referenceDim);
+                                /*
                                 if(argumentDim == referenceDim){
                                     printf("[DEBUG] Array passed to scalar parameter.\n");
                                 }
+                                */
+                                if(argumentDim < referenceDim){
+                                    printErrorMsg(argument, NOT_ARRAY);
+                                }
                                 else if(argumentDim < referenceDim || argumentDim - referenceDim != parameterDim){
-                                    printErrorMsg(argument, )
+                                    printErrorMsg(argument, NOT_ASSIGNABLE);
                                     //printf("[DEBUG] Incompatable array dimension.\n");
                                 }
                                 g_suppressError = 1;
@@ -693,9 +767,9 @@ DATA_TYPE processVariableLValue(AST_NODE* idNode){
                 return ERROR_TYPE;
             }
             int referenceDim = processDeclDimList(idNode->child, NULL, 0);
-            //printf("referenceDim is %d\n", referenceDim);
+            printf("referenceDim is %d\n", referenceDim);
             if(referenceDim > descriptor->properties.arrayProperties.dimension){
-                printErrorMsg(idNode, NOT_ASSIGNABLE);
+                printErrorMsg(idNode, NOT_ARRAY);
                 return ERROR_TYPE;
             }
             else if(referenceDim < descriptor->properties.arrayProperties.dimension){
@@ -728,8 +802,8 @@ DATA_TYPE processConstValueNode(AST_NODE* constValueNode){
 }
 
 
-void checkReturnStmt(AST_NODE* returnNode)
-{
+void checkReturnStmt(AST_NODE* returnNode){
+    AST_NODE
 }
 
 /* Process a block aka {} */
@@ -765,6 +839,7 @@ void processStmtNode(AST_NODE* stmtNode){
         case NUL_NODE:
             return;
         case STMT_NODE:
+            //printf("%d\n", stmtNode->semantic_value.stmtSemanticValue.kind);
             switch(stmtNode->semantic_value.stmtSemanticValue.kind){
                 case WHILE_STMT:
                     checkWhileStmt(stmtNode);
