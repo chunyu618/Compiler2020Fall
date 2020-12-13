@@ -387,6 +387,7 @@ void checkWriteFunction(AST_NODE* functionCallNode)
 /* Check if the function call is legal */
 DATA_TYPE checkFunctionCall(AST_NODE* functionCallNode){
     AST_NODE *functionNameNode = functionCallNode->child;
+    printf("Function name is %s\n", getIdByNode(functionNameNode));
     SymbolTableEntry *entry = retrieveSymbol(getIdByNode(functionNameNode));
     if(entry == NULL){
         printErrorMsg(functionNameNode, SYMBOL_UNDECLARED);
@@ -698,7 +699,7 @@ void declareFunction(AST_NODE* declarationNode){
     }
 
     /* Initialize the function signature information */
-    AST_NODE *ret_node, *name_node, *param_node, *block_node;
+    AST_NODE *retNode, *nameNode, *paramNode, *blockNode;
     retNode = declarationNode->child;
     nameNode = retNode->rightSibling;
     paramNode = nameNode->rightSibling;
@@ -715,8 +716,8 @@ void declareFunction(AST_NODE* declarationNode){
     /* Enter into the symbol table */
     SymbolAttribute *attr = newAttribute(FUNCTION_SIGNATURE);
     attr->attr.functionSignature = func;
-    if(enterSymbol(getIdByNode(name_node), attr) == NULL){
-        printErrorMsg(name_node, SYMBOL_REDECLARE);
+    if(enterSymbol(getIdByNode(nameNode), attr) == NULL){
+        printErrorMsg(nameNode, SYMBOL_REDECLARE);
         return;
     }
 
@@ -761,12 +762,12 @@ void declareFunction(AST_NODE* declarationNode){
                 attr = newAttribute(VARIABLE_ATTRIBUTE);
                 attr->attr.typeDescriptor = desc;
 
-                if(enterSymbol(getIdByNode(paranIdNode), attr) == NULL){
+                if(enterSymbol(getIdByNode(paramIdNode), attr) == NULL){
                     printErrorMsg(paramIdNode, SYMBOL_REDECLARE);
                     break;
                 }
                 newParam->type = desc;
-                newParam->parameterName = getIdByNode(paramIdNode)
+                newParam->parameterName = getIdByNode(paramIdNode);
                 break;
             default:
                 printf("[DEBUG] Unexpected type of variable.\n");
@@ -785,4 +786,4 @@ void declareFunction(AST_NODE* declarationNode){
     closeScope();
     g_currentFunctionDecl = NULL;
     return;
-}
+}    
