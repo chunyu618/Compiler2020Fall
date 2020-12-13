@@ -1,4 +1,7 @@
+int f1(float a){
+
+}
+
 int main() {
-    read();
-    write();
+    return 1.1;
 }

@@ -56,7 +56,7 @@ DATA_TYPE processExprNode(AST_NODE* exprNode);
 DATA_TYPE processVariableLValue(AST_NODE* idNode);
 void processVariableRValue(AST_NODE* idNode);
 DATA_TYPE processConstValueNode(AST_NODE* constValueNode);
-void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue);
+DATA_TYPE getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue);
 void evaluateExprValue(AST_NODE* exprNode, DATA_TYPE dataType);
 
 static __inline__ char *getIdByNode(AST_NODE *node){
@@ -109,7 +109,14 @@ void printErrorMsgSpecial(AST_NODE* node, char *name2, ErrorMsgKind errorMsgKind
     
     
 }
-
+void printWarnMsg(AST_NODE *node, ErrorMsgKind warnMsgKind){
+    switch(warnMsgKind){
+        case RETURN_TYPE_UNMATCH:
+            printf("Warning found in line%d.\n", node->linenumber);
+            printf("implicit conversion turns floating-point number into integer: '%s' to '%s'\n", DATA_TYPE_string[1], DATA_TYPE_string[0]);
+            break; 
+    }
+}
 
 void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind){
     SymbolTableEntry *entry;
@@ -137,10 +144,6 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind){
             break;
         case TOO_MANY_ARGUMENTS:
             printf("no matching function for call '%s'.\n", getIdByNode(node));
-            break;
-        case RETURN_TYPE_UNMATCH:
-            printf("Warning found in line%d.\n", node->linenumber);
-            printf("implicit conversion turns floating-point number intot integer: '%s' to '%s'", DATA_TYPE_string[node->dataType], DATA_TYPE_string[node->dataType]);
             break;
         case NOT_ARRAY:
             printf("subscripted value is not an array, pointer, or vector.\n");
@@ -658,11 +661,182 @@ DATA_TYPE processExprRelatedNode(AST_NODE* exprRelatedNode){
     return ERROR_TYPE;
 }
 
-void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue)
-{
+DATA_TYPE getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue){
+    if(exprOrConstNode->nodeType == CONST_VALUE_NODE){
+        switch(exprOrConstNode->semantic_value.const1->const_type){
+            case INTEGERC:
+                *iValue = exprOrConstNode->semantic_value.const1->const_u.intval;
+                return INT_TYPE;
+            case FLOATC:
+                *fValue = exprOrConstNode->semantic_value.const1->const_u.fval;
+                return FLOAT_TYPE;
+            default:
+                return ERROR_TYPE;
+        }
+    }
+    else if(exprOrConstNode->nodeType == EXPR_NODE && exprOrConstNode->semantic_value.exprSemanticValue.isConstEval == 1){
+        switch(exprOrConstNode->dataType){
+            case INTEGERC:
+                *iValue = exprOrConstNode->semantic_value.exprSemanticValue.constEvalValue.iValue;
+                return INT_TYPE;
+            case FLOATC:
+                *fValue = exprOrConstNode->semantic_value.exprSemanticValue.constEvalValue.fValue;
+                return FLOAT_TYPE;
+            default:
+                return ERROR_TYPE;
+        }
+    }
+    else{
+        return ERROR_TYPE;
+    }
 }
 
 void evaluateExprValue(AST_NODE* exprNode, DATA_TYPE dataType){
+    if(exprNode->semantic_value.exprSemanticValue.kind == BINARY_OPERATION){
+        AST_NODE *leftExpr = exprNode->child;
+        AST_NODE *rightExpr = leftExpr->rightSibling;
+
+        int leftInt, rightInt;
+        float leftFloat, rightFloat;
+
+        DATA_TYPE leftDataType = getExprOrConstValue(leftExpr, &leftInt, &leftFloat);
+        DATA_TYPE rightDataType = getExprOrConstValue(rightExpr, &rightInt, &rightFloat);
+        if(dataType != INT_TYPE && dataType != FLOAT_TYPE){
+            return;
+        }
+        if(leftDataType == ERROR_TYPE || rightDataType == ERROR_TYPE || leftDataType == VOID_TYPE || rightDataType == VOID_TYPE){
+            return;
+        }
+        if(leftDataType == INT_TYPE && rightDataType == INT_TYPE){
+            int val;
+            switch(exprNode->semantic_value.exprSemanticValue.op.binaryOp){
+                case BINARY_OP_ADD:
+                    val = leftInt + rightInt;
+                    break;
+                case BINARY_OP_SUB:
+                    val = leftInt - rightInt;
+                    break;
+                case BINARY_OP_MUL:
+                    val = leftInt * rightInt;
+                    break;
+                case BINARY_OP_DIV:
+                    val = leftInt / rightInt;
+                    break;
+                case BINARY_OP_EQ:
+                    val = (leftInt == rightInt);
+                    break;
+                case BINARY_OP_GE:
+                    val = (leftInt >= rightInt);
+                    break;
+                case BINARY_OP_LE:
+                    val = (leftInt <= rightInt);
+                    break;
+                case BINARY_OP_NE:
+                    val = (leftInt != rightInt);
+                    break;
+                case BINARY_OP_GT:
+                    val = (leftInt > rightInt);
+                    break;
+                case BINARY_OP_LT:
+                    val = (leftInt < rightInt);
+                    break;
+                case BINARY_OP_AND:
+                    val = (leftInt && rightInt);
+                    break;
+                case BINARY_OP_OR:
+                    val = (leftInt || rightInt);
+                    break;
+            }
+            exprNode->semantic_value.exprSemanticValue.isConstEval = 1;
+            if(dataType == INT_TYPE){
+                exprNode->semantic_value.exprSemanticValue.constEvalValue.iValue = val;
+            }
+            else if(dataType == FLOAT_TYPE){
+                exprNode->semantic_value.exprSemanticValue.constEvalValue.fValue = (float)val;
+            }
+        }
+        else if(dataType == FLOAT_TYPE || rightDataType == FLOAT_TYPE){
+            if(leftDataType == INT_TYPE){
+                leftFloat = (float)leftInt;
+            }
+            if(rightDataType == INT_TYPE){
+                rightFloat = (float)rightInt;
+            }
+            float fval = 0;
+            int ival = 0;
+            switch(exprNode->semantic_value.exprSemanticValue.op.binaryOp){
+                case BINARY_OP_ADD:
+                    fval = leftFloat + rightFloat;
+                    break;
+                case BINARY_OP_SUB:
+                    fval = leftFloat - rightFloat;
+                    break;
+                case BINARY_OP_MUL:
+                    fval = leftFloat * rightFloat;
+                    break;
+                case BINARY_OP_DIV:
+                    fval = leftFloat / rightFloat;
+                    break;
+                case BINARY_OP_EQ:
+                    ival = (leftFloat == rightFloat);
+                    break;
+                case BINARY_OP_GE:
+                    ival = (leftFloat >= rightFloat);
+                    break;
+                case BINARY_OP_LE:
+                    ival = (leftFloat <= rightFloat);
+                    break;
+                case BINARY_OP_NE:
+                    ival = (leftFloat != rightFloat);
+                    break;
+                case BINARY_OP_GT:
+                    ival = (leftFloat > rightFloat);
+                    break;
+                case BINARY_OP_LT:
+                    ival = (leftFloat < rightFloat);
+                    break;
+                case BINARY_OP_AND:
+                    ival = (leftFloat && rightFloat);
+                    break;
+                case BINARY_OP_OR:
+                    ival = (leftFloat || rightFloat);
+                    break;  
+            }
+            exprNode->semantic_value.exprSemanticValue.isConstEval = 1;
+            switch(exprNode->semantic_value.exprSemanticValue.op.binaryOp){
+                case BINARY_OP_ADD:
+                case BINARY_OP_SUB:
+                case BINARY_OP_MUL:
+                case BINARY_OP_DIV:
+                    if(dataType == INT_TYPE){
+                        exprNode->semantic_value.exprSemanticValue.constEvalValue.iValue = (int)fval;
+
+                    }
+                    else if(dataType == FLOAT_TYPE){
+                        exprNode->semantic_value.exprSemanticValue.constEvalValue.fValue = fval;
+                    }
+                    break;
+                case BINARY_OP_EQ:    
+                case BINARY_OP_GE:    
+                case BINARY_OP_LE:    
+                case BINARY_OP_NE:    
+                case BINARY_OP_GT:    
+                case BINARY_OP_LT:    
+                case BINARY_OP_AND:    
+                case BINARY_OP_OR:
+                    if(dataType == INT_TYPE){
+                        exprNode->semantic_value.exprSemanticValue.constEvalValue.iValue = ival;
+                    }
+                    else if(dataType == FLOAT_TYPE){
+                        exprNode->semantic_value.exprSemanticValue.constEvalValue.fValue = (float)ival;
+                    }
+                    break;
+            }
+        }
+    }
+    else if(exprNode->semantic_value.exprSemanticValue.kind == UNARY_OPERATION){
+        
+    }
 }
 
 /* Process expression */
@@ -803,7 +977,31 @@ DATA_TYPE processConstValueNode(AST_NODE* constValueNode){
 
 
 void checkReturnStmt(AST_NODE* returnNode){
-    AST_NODE
+    AST_NODE *functionNameNode = g_currentFunctionDecl->child->rightSibling;
+    FunctionSignature *signature = retrieveSymbol(functionNameNode->semantic_value.identifierSemanticValue.identifierName)->attribute->attr.functionSignature;
+    DATA_TYPE returnType;
+    switch(returnNode->child->nodeType){
+        case NUL_NODE:
+            if(signature->returnType != VOID_TYPE){
+                printf("[DEBUG] Unmatch return type.\n");
+            }
+            break;
+        case IDENTIFIER_NODE:
+        case CONST_VALUE_NODE:
+        case EXPR_NODE: 
+            returnType = processExprRelatedNode(returnNode->child);
+            if(returnType != signature->returnType){
+                if(returnType == FLOAT_TYPE && signature->returnType == INT_TYPE){
+                    printWarnMsg(functionNameNode, RETURN_TYPE_UNMATCH);
+                }
+                else{
+                    printf("[DEBUG] Unmatch return type.\n");
+                }
+            }
+            break;
+        default:
+            printf("[DEBUG] Broken AST.\n");
+    }
 }
 
 /* Process a block aka {} */
