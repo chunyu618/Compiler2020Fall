@@ -88,6 +88,7 @@ typedef enum ErrorMsgKind
     IS_TYPE_NOT_VARIABLE,
     IS_FUNCTION_NOT_VARIABLE,
     STRING_OPERATION,
+    VOID_OPERATION,
     ARRAY_SIZE_NOT_INT,
     ARRAY_SIZE_NEGATIVE,
     ARRAY_SUBSCRIPT_NOT_INT,
@@ -103,6 +104,9 @@ void printErrorMsgSpecial(AST_NODE* node, char *name2, ErrorMsgKind errorMsgKind
         case TYPE_REDECLARE:
             printf("typedef redefinition with different types (%s vs %s).\n", name2, DATA_TYPE_string[processTypeNode(node)]);
             break;
+        case VOID_OPERATION:
+            printf("passing 'void' to parameter of incompatible type '%s'.\n", name2);
+            break;     
         default:
             break;
     } 
@@ -110,11 +114,13 @@ void printErrorMsgSpecial(AST_NODE* node, char *name2, ErrorMsgKind errorMsgKind
     
 }
 void printWarnMsg(AST_NODE *node, ErrorMsgKind warnMsgKind){
+    
+    printf("Warning found in line%d.\n", node->linenumber);
     switch(warnMsgKind){
         case RETURN_TYPE_UNMATCH:
-            printf("Warning found in line%d.\n", node->linenumber);
             printf("implicit conversion turns floating-point number into integer: '%s' to '%s'\n", DATA_TYPE_string[1], DATA_TYPE_string[0]);
             break; 
+        
     }
 }
 
@@ -138,6 +144,12 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind){
             break;
         case SYMBOL_UNDECLARED:
             printf("use of undeclared idnetifier '%s'.\n", getIdByNode(node));
+            break;
+        case SYMBOL_IS_NOT_TYPE:
+            printf("unknown type name '%s'\n", getIdByNode(node));
+            break;
+        case VOID_VARIABLE:
+            printf("variable has incomplete type 'void'\n");
             break;
         case TOO_FEW_ARGUMENTS:
             printf("no matching function for call '%s'.\n", getIdByNode(node));
@@ -299,11 +311,14 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
         DATA_TYPE dataType = processTypeNode(typeNode);
         //printf("data type is %s\n", DATA_TYPE_string[dataType]);
         if(dataType == ERROR_TYPE){
-            printf("[DEBUG] data type is error type.\n");
+            printErrorMsg(typeNode, SYMBOL_IS_NOT_TYPE);
+            //printf("[DEBUG] data type is error type.\n");
             return;
         } 
         else if(dataType == VOID_TYPE){
-            printf("[DEBUG] data type is void type.\n");
+            // This may not happen
+            printErrorMsg(typeNode, VOID_VARIABLE);
+            //printf("[DEBUG] data type is void type.\n");
             return;
         }
         for(AST_NODE *id = typeNode->rightSibling; id != NULL; id = id->rightSibling){
@@ -332,15 +347,15 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
                     exprType = processExprRelatedNode(exprNode);
                     if(exprType == CONST_STRING_TYPE){
                         //printfErrorMsg(exprNode, )
-                        printf("[DEBUG] expression type is const string.\n");
+                        //printf("[DEBUG] expression type is const string.\n");
                         break;
                     }
                     else if (exprType == VOID_TYPE){
-                        printf("[DEBIG] expression type is void.\n");
+                        //printf("[DEBIG] expression type is void.\n");
                         break;
                     }
                     else if(exprType == ERROR_TYPE){
-                        printf("[DEBUG] expression type is error type.\n");
+                        //printf("[DEBUG] expression type is error type.\n");
                         break;
                     }
                     
@@ -381,8 +396,10 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
     else if(isVariableOrTypeAttribute == TYPE_ATTRIBUTE){
         AST_NODE *typeNode = declarationNode->child;
         DATA_TYPE dataType = processTypeNode(typeNode);
+        //printf("dataType is %s\n", DATA_TYPE_string[dataType]);
         if(dataType == ERROR_TYPE){
-            printf("[DEBUG] Symbol is not a type.\n");
+            printErrorMsg(typeNode, SYMBOL_IS_NOT_TYPE);
+            //printf("[DEBUG] Symbol is not a type.\n");
         }
         for(AST_NODE *id = typeNode->rightSibling; id != NULL; id = id->rightSibling){
             if(insertType(getIdByNode(id), dataType) == NULL){
@@ -478,7 +495,7 @@ void checkWriteFunction(AST_NODE* functionCallNode){
     }
     DATA_TYPE argumentType = processExprRelatedNode(argument);
     if(argumentType == VOID_TYPE){
-        printf("[DEBUG] Void operation.\n");
+        //printf("[DEBUG] Void operation.\n");
     }
 }
 
@@ -555,7 +572,8 @@ void checkParameterPassing(Parameter* parameterList, AST_NODE* functionNameNode)
                     }
                     DATA_TYPE argumentType = processExprRelatedNode(argument);
                     if(argumentType == VOID_TYPE){
-                        printf("[DEBUG] Unexpected void type.\n");
+                        printErrorMsgSpecial(argument, DATA_TYPE_string[parameterList->type->properties.dataType], VOID_OPERATION);
+                        //printf("[DEBUG] Unexpected void type.\n");
                     }
                     else if(argumentType == CONST_STRING_TYPE){
                         printf("[DEBUG] Unexpected const string type.\n");
