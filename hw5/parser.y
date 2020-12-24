@@ -8,7 +8,9 @@
 #include "header.h"
 #include "symbolTable.h"
 int linenumber = 1;
+int yylex();
 AST_NODE *prog;
+int yyerror(char *mesg);
 
 extern int g_anyErrorOccur;
 
@@ -737,13 +739,10 @@ dim_list	: dim_list MK_LB expr MK_RB
 %%
 
 #include "lex.yy.c"
-main (argc, argv)
-int argc;
-char *argv[];
-  {
+int main(int argc, char *argv[]){
      yyin = fopen(argv[1],"r");
      yyparse();
-     // printGV(prog, NULL);
+     printGV(prog, NULL);
 
      initializeSymbolTable();
 
@@ -753,12 +752,13 @@ char *argv[];
      if (!g_anyErrorOccur) {
         printf("Parsing completed. No errors found.\n");
      }
+
+     codeGeneration(prog);
+     return 0;
   } /* main */
 
 
-int yyerror (mesg)
-char *mesg;
-  {
+int yyerror(char *mesg){
   printf("%s\t%d\t%s\t%s\n", "Error found in Line ", linenumber, "next token: ", yytext );
   exit(1);
-  }
+}
