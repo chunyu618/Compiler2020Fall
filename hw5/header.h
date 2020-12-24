@@ -1,7 +1,7 @@
 #ifndef __HEADER_H__
 #define __HEADER_H__
 
-#define MAX_ARRAY_DIMENSION 10
+#define MAX_ARRAY_DIMENSION 32
 
 typedef enum DATA_TYPE
 {
@@ -14,6 +14,7 @@ typedef enum DATA_TYPE
     NONE_TYPE,//for nodes like PROGRAM_NODE which has no type
     ERROR_TYPE
 } DATA_TYPE;
+
 
 typedef enum IDENTIFIER_KIND
 {
@@ -168,5 +169,7 @@ typedef struct AST_NODE AST_NODE;
 
 AST_NODE *Allocate(AST_TYPE type);
 void semanticAnalysis(AST_NODE *root);
+void printNode(AST_NODE *root, int level, int levelCount[]);
+void printLevel(int level, int levelCount[]);
 
 #endif
