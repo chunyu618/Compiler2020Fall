@@ -24,19 +24,23 @@ void codeGeneration(AST_NODE *root){
 }
 
 void genPrologue(){
-    fprintf(outputFile, "_start_%s:\n", _FUNC_NAME);
-    fprintf(outputFile, "\taddi\tsp,sp,-16\n");
-    fprintf(outputFile, "\tsd\tra,8(sp)\n");
-    fprintf(outputFile, "\tsd\ts0,0(sp)\n");
-    fprintf(outputFile, "\taddi\ts0,sp,16\n");
-    fprintf(outputFile, "_begin_%s:\n", _FUNC_NAME);
+    fprintf(outputFile, "_start_%s:\n", _FUNC_NAME); /* Generation of function start label*/
+    fprintf(outputFile, "\taddi\tsp,sp,-16\n");      /* addi    sp,sp,-16 */
+    fprintf(outputFile, "\tsd\tra,8(sp)\n");         /* sd      ra,8(sp)  */
+    fprintf(outputFile, "\tsd\ts0,0(sp)\n");         /* sd      s0,0(sp)  */ 
+    fprintf(outputFile, "\taddi\ts0,sp,16\n");       /* addi    s0,sp,16  */
+    fprintf(outputFile, "_begin_%s:\n", _FUNC_NAME); /* Generation of function begin label */
 }   
 
 void genEpilogue(){
-    fprintf(outputFile, "_end_%s:\n", _FUNC_NAME);
-    fprintf(outputFile, "\tld\ts0,0\n");
-    fprintf(outputFile, "\taddi\tsp,sp,16\n");
-    fprintf(outputFile, "\tjr\tra\n");
+    /* Restore */
+    fprintf(outputFile, "_end_%s:\n", _FUNC_NAME);   /* Generation of function end label */
+    fprintf(outputFile, "\tld\ts0,sp(0)\n");         /* ld      s0,sp(0) */
+    fprintf(outputfile, "\tld\tra,sp(8)\n");         /* ld      ra,sp(8) */  
+    fprintf(outputFile, "\taddi\tsp,sp,16\n");       /* addi    sp,sp,16 */
+    fprintf(outputFile, "\tjr\tra\n");               /* jr      ra       */
+
+
 }
 
 
