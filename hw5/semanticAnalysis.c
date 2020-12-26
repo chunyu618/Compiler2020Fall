@@ -31,7 +31,7 @@ void processVariableRValue(AST_NODE* idNode);
 void processConstValueNode(AST_NODE* constValueNode);
 void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue);
 void evaluateExprValue(AST_NODE* exprNode);
-
+static __inline__ char *getIdByNode(AST_NODE *node);
 
 typedef enum ErrorMsgKind
 {
@@ -62,6 +62,13 @@ typedef enum ErrorMsgKind
     PASS_ARRAY_TO_SCALAR,
     PASS_SCALAR_TO_ARRAY
 } ErrorMsgKind;
+
+static __inline__ char *getIdByNode(AST_NODE *node){
+    if(node->nodeType == IDENTIFIER_NODE){
+        return node->semantic_value.identifierSemanticValue.identifierName;
+    }
+    return NULL;
+}
 
 void printErrorMsgSpecial(AST_NODE* node1, char* name2, ErrorMsgKind errorMsgKind)
 {
