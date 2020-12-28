@@ -519,6 +519,7 @@ void checkIfStmt(AST_NODE* ifNode){
 }
 
 void checkWriteFunction(AST_NODE* functionCallNode){
+    //printf("Function name is %s\n", getIdByNode(functionCallNode));
     if(functionCallNode->rightSibling->nodeType == NUL_NODE){
         printErrorMsg(functionCallNode, TOO_FEW_ARGUMENTS);
         return;
@@ -529,6 +530,9 @@ void checkWriteFunction(AST_NODE* functionCallNode){
         return;
     }
     DATA_TYPE argumentType = processExprRelatedNode(argument);
+    //printf("argument type is %d\n", argumentType);
+    functionCallNode->rightSibling->child->dataType = argumentType; 
+    //printf("Address is %d\n", functionCallNode->rightSibling->child->dataType);
     if(argumentType == VOID_TYPE){
         //printErrorMsg(functionCallNode, );
         //printf("[DEBUG] Void operation.\n");
