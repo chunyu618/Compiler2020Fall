@@ -699,13 +699,13 @@ DATA_TYPE processExprRelatedNode(AST_NODE* exprRelatedNode){
     //printf("node type is %s\n", NODE_TYPE_string[exprRelatedNode->nodeType]);
     switch(exprRelatedNode->nodeType){
         case EXPR_NODE:
-            return processExprNode(exprRelatedNode);
+            return (exprRelatedNode->dataType = processExprNode(exprRelatedNode));
         case CONST_VALUE_NODE:
-            return processConstValueNode(exprRelatedNode);
+            return (exprRelatedNode->dataType = processConstValueNode(exprRelatedNode));
         case STMT_NODE:
             switch(exprRelatedNode->semantic_value.stmtSemanticValue.kind){
                 case FUNCTION_CALL_STMT:
-                    return checkFunctionCall(exprRelatedNode);
+                    return (exprRelatedNode->dataType = checkFunctionCall(exprRelatedNode));
                 case ASSIGN_STMT:
                     leftValueNode = exprRelatedNode->child;
                     DATA_TYPE leftDataType = processExprRelatedNode(leftValueNode);
@@ -728,13 +728,14 @@ DATA_TYPE processExprRelatedNode(AST_NODE* exprRelatedNode){
                             return ERROR_TYPE;
                         }
                     }
-                    return leftDataType;
+
+                    return (exprRelatedNode->dataType = leftDataType);
                 default:
                     printf("[DEBUG] Broken AST.\n");
                     exit(1);
             }
         case IDENTIFIER_NODE:
-            return processVariableLValue(exprRelatedNode);
+            return (exprRelatedNode->dataType = processVariableLValue(exprRelatedNode));
         default:
             printf("[DEBUG] Unexpected ExprRelated Node.\n");
             return ERROR_TYPE;
@@ -1190,7 +1191,7 @@ void processBlockNode(AST_NODE* blockNode){
 
 
 void processStmtNode(AST_NODE* stmtNode){
-    //printf("stmt node type is %s\n", NODE_TYPE_string[stmtNode->nodeType]);
+    printf("stmt node type is %s\n", NODE_TYPE_string[stmtNode->nodeType]);
     switch(stmtNode->nodeType){
         case BLOCK_NODE:
             processBlockNode(stmtNode);

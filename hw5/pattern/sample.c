@@ -1,5 +1,5 @@
 int MAIN(){
     int a;
-    a = 1;
+    a = 123333 + 123;
     write(a);
 }

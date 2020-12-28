@@ -4,10 +4,10 @@ _start_MAIN:
 	sd	fp,-8(sp)
 	addi	fp,sp,-8
 	addi	sp,sp,-16
-	li	t0,1
-	fcvt.w.s	ft1,t0,rtz
-	lw	t2,-8(s0)
-	mv	a0,t2
+	li	t0,123456
+	sw	t0,-8(s0)
+	lw	t0,-8(s0)
+	mv	a0,t0
 	call	_write_int
 	ld	ra,8(fp)
 	mv	sp,fp

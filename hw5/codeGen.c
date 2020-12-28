@@ -374,7 +374,7 @@ void genFunctionCall(AST_NODE *node){
 
 void genExprRelated(AST_NODE *node){
     //printf("gen Expr Related\n");
-    //printf("ID name %s, type %d\n", getIdByNode(node), node->nodeType);
+    printf("ID name %s, type %d\n", getIdByNode(node), node->nodeType);
     switch(node->nodeType){
         case EXPR_NODE:
             genExpr(node);
@@ -395,15 +395,17 @@ void genExprRelated(AST_NODE *node){
 }
 
 void genConstValue(AST_NODE *node){
+    printf("Const value data type is %d\n", node->dataType);
     C_type constType = node->semantic_value.const1->const_type; 
     if(constType == INTEGERC){
-        //printf("int\n");
+        printf("int\n");
         node->regType = T_REG;
         node->reg[T_REG] = allocateTIntReg();
+        printf("\tli\tt%d,%d\n", node->reg[T_REG], node->semantic_value.const1->const_u.intval);
         fprintf(outputFile, "\tli\tt%d,%d\n", node->reg[T_REG], node->semantic_value.const1->const_u.intval);
     }
     else if(constType == FLOATC){
-        //printf("float\n");
+        printf("float\n");
         node->regType = T_REG;
         node->reg[T_REG] = allocateTFloatReg();
         fprintf(outputFile, ".data\n");
@@ -416,7 +418,7 @@ void genConstValue(AST_NODE *node){
         constNumber++;
     }
     else if(constType == STRINGC){
-        //printf("string\n");
+        printf("string\n");
         node->regType = T_REG;
         node->reg[T_REG] = allocateTIntReg();
         fprintf(outputFile, ".data\n");
@@ -487,7 +489,7 @@ void genExpr(AST_NODE *node){
             node->regType = T_REG;
             node->reg[T_REG] = allocateTIntReg();
             int val = node->semantic_value.exprSemanticValue.constEvalValue.iValue;
-            fprintf(outputFile, "\tli\tt%d,%d\n", val);
+            fprintf(outputFile, "\tli\tt%d,%d\n", node->reg[T_REG], val);
         }
         else if(node->dataType == FLOAT_TYPE){
             node->regType = T_REG;
@@ -791,6 +793,7 @@ void genAssignOrExpr(AST_NODE *node){
 void genAssignmentStmt(AST_NODE *node){
     AST_NODE *LHS = node->child, *RHS = node->child->rightSibling;
     genExprRelated(RHS);
+    printf("LHS is %d, RHS is %d\n", LHS->dataType, RHS->dataType);
     if(LHS->dataType != RHS->dataType){
         if(LHS->dataType == INT_TYPE){
            genFloatToInt(node, T_REG); 
@@ -803,11 +806,13 @@ void genAssignmentStmt(AST_NODE *node){
     SymbolTableEntry *LHSEntry = LHS->semantic_value.identifierSemanticValue.symbolTableEntry;
     if(LHSKind == NORMAL_ID){
         if(LHSEntry->scope > 0){
-            if(LHS->nodeType == INT_TYPE){
+            printf("Scope is %d\n", LHSEntry->scope);
+            //printf("LHS node")
+            if(LHS->dataType == INT_TYPE){
                 fprintf(outputFile, "\tsw\tt%d,%d(s0)\n", RHS->reg[T_REG], LHSEntry->offset);
                 freeTIntReg(RHS->reg[T_REG]);
             }
-            else if(LHS->nodeType == FLOAT_TYPE){
+            else if(LHS->dataType == FLOAT_TYPE){
                 fprintf(outputFile, "\tfsw\tft%d,%d(s0)\n", RHS->reg[T_REG], LHSEntry->offset);
                 freeTFloatReg(RHS->reg[T_REG]);
             }
