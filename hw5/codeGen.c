@@ -454,7 +454,7 @@ void genLocalDeclaration(AST_NODE *node){
         }
         TypeDescriptorKind kind = entry->attribute->attr.typeDescriptor->kind;
         if(kind == SCALAR_TYPE_DESCRIPTOR){
-            localVarOffset -= 8;
+            localVarOffset -= 4;
             entry->offset = localVarOffset;
             if(id->semantic_value.identifierSemanticValue.kind == WITH_INIT_ID){
                 AST_NODE *relop = id->child;
@@ -471,7 +471,7 @@ void genLocalDeclaration(AST_NODE *node){
             }
         }
         else if(kind == ARRAY_TYPE_DESCRIPTOR){
-            int size = 8;
+            int size = 4;
             ArrayProperties arrayProperty = entry->attribute->attr.typeDescriptor->properties.arrayProperties;
             for(int dim = 0 ; dim < arrayProperty.dimension ; dim++){
                 size *= arrayProperty.sizeInEachDimension[dim];
@@ -494,11 +494,14 @@ void genExpr(AST_NODE *node){
         else if(node->dataType == FLOAT_TYPE){
             node->regType = T_REG;
             node->reg[T_REG] = allocateTFloatReg();
+            int tmpReg = allocateTIntReg();
             float fVal = node->semantic_value.exprSemanticValue.constEvalValue.fValue;
             fprintf(outputFile, ".data\n");
-            fprintf(outputFile, "_CONSTANT_%d: .word  %d\n", node->reg[T_REG], *(unsigned int*)&fVal);
+            fprintf(outputFile, "_CONSTANT_%d: .word  %#010x\n", constNumber, *(unsigned int*)&fVal);
             fprintf(outputFile, ".text\n");
-            fprintf(outputFile, "\tli\tt%d,%d\n", fVal);
+            fprintf(outputFile, "\tflw\tft%d,_CONSTANT_%d,t%d\n", node->reg[T_REG], constNumber, tmpReg);
+            freeTIntReg(tmpReg);
+            constNumber++;
         }
         return;
     }
@@ -608,23 +611,34 @@ void genExpr(AST_NODE *node){
             case BINARY_OP_SUB:
             case BINARY_OP_MUL:
             case BINARY_OP_DIV:
-                if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_ADD){
-                    fprintf(outputFile, "\tadd\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
-                }
-                else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_SUB){
-                    fprintf(outputFile, "\tsub\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
-                }
-                else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_MUL){
-                    fprintf(outputFile, "\tmul\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
-                }
-                else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_DIV){
-                    fprintf(outputFile, "\tdiv\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
-                }
-
                 if(node->dataType == INT_TYPE){
+                    if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_ADD){
+                        fprintf(outputFile, "\tadd\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    }
+                    else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_SUB){
+                        fprintf(outputFile, "\tsub\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    }
+                    else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_MUL){
+                        fprintf(outputFile, "\tmul\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    }
+                    else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_DIV){
+                        fprintf(outputFile, "\tdiv\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    }
                     freeTIntReg(RHS->reg[T_REG]);
                 }    
-                else{
+                else if(node->dataType == FLOAT_TYPE){
+                    if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_ADD){
+                        fprintf(outputFile, "\tfadd.s\tft%d,ft%d,ft%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    }
+                    else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_SUB){
+                        fprintf(outputFile, "\tfsub.s\tft%d,ft%d,ft%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    }
+                    else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_MUL){
+                        fprintf(outputFile, "\tfmul.s\tft%d,ft%d,ft%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    }
+                    else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_DIV){
+                        fprintf(outputFile, "\tfdiv.s\tft%d,ft%d,ft%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    }
                     freeTFloatReg(RHS->reg[T_REG]);
                 }    
                 break;
