@@ -7,17 +7,25 @@ _start_MAIN:
 	sd	fp,-8(sp)
 	addi	fp,sp,-8
 	addi	sp,sp,-16
-	flw	ft0,_gf,t0
-	fcvt.w.s	t0,ft0,rtz
-	not	t0,t0
-    mv a0,t0
-    call _write_int
+	li	t0,123
 	sd	t0,-8(s0)
-	lw	t0,_gi
-	not	t0,t0
-    mv a0,t0
-    call _write_int
-	sd	t0,-16(s0)
+	lw	t0,-8(s0)
+	li	t1,123
+	xor	t0,t0,t1
+	seqz	t2,t0
+	beq	t2,x0,_LABEL_0
+	j	_LABEL_1
+_LABEL_1:
+	lw	t3,-8(s0)
+	li	t4,456
+	xor	t3,t3,t4
+	seqz	t5,t3
+	and	t2,t2,t5
+	j	_LABEL_0
+_LABEL_0:
+	and	t1,t2,1
+	sd	t1,-16(s0)
+	lw	t1,-16(s0)
 	ld	ra,8(fp)
 	mv	sp,fp
 	addi	sp,sp,8

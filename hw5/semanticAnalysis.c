@@ -994,6 +994,7 @@ DATA_TYPE processExprNode(AST_NODE* exprNode){
         case BINARY_OPERATION:
             leftDataType = processExprRelatedNode(exprNode->child);
             rightDataType = processExprRelatedNode(exprNode->child->rightSibling);
+            //printf("left is %d, right is %d\n", leftDataType, rightDataType);
             if(leftDataType == VOID_TYPE || rightDataType == VOID_TYPE){
                 printErrorMsg(exprNode, VOID_OPERATION);
                 //printf("[DEBUG] void operation.\n");
@@ -1047,6 +1048,7 @@ DATA_TYPE processExprNode(AST_NODE* exprNode){
             printf("[DEBUG] Invalid operation.\n");
             exit(1);
     }
+    //printf("Node name is %s and type is %d\n", getIdByNode(exprNode), dataType);
     exprNode->dataType = dataType;
     return dataType;
 }

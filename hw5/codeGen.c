@@ -12,6 +12,7 @@ int sFloatRegs[12] = {};
 int tIntRegs[7] = {};
 int tFloatRegs[7] = {};
 int constNumber = 0;
+int labelCount = 0;
 static int localVarOffset;
 
 static __inline__ DATA_TYPE getDataTypeByEntry(SymbolTableEntry* entry){return entry->attribute->attr.typeDescriptor->properties.dataType;}
@@ -511,14 +512,187 @@ void genExpr(AST_NODE *node){
             default:
                 break;
         }
+        
 
         //printf("LHS is %s type %d, RHS is %s type %d\n", getIdByNode(LHS), LHS->dataType, getIdByNode(RHS), RHS->dataType);
+        DATA_TYPE logical_op_type;
         if(LHS->dataType != RHS->dataType){
-            
+            if(node->semantic_value.exprSemanticValue.op.binaryOp != BINARY_OP_AND && node->semantic_value.exprSemanticValue.op.binaryOp != BINARY_OP_AND){
+                printf("Different!!\n");  
+                if(LHS->dataType == INT_TYPE){
+                    genIntToFloat(LHS, T_REG);
+                }
+                else if(RHS->dataType == INT_TYPE){
+                    genIntToFloat(RHS, T_REG);
+                }
+            }
+            else{
+                if(LHS->dataType == INT_TYPE){
+                    node->regType = T_REG;
+                    node->reg[node->regType] = LHS->reg[T_REG];
+                }
+                else{
+                    node->regType = T_REG;
+                    node->reg[node->regType] = RHS->reg[T_REG];
+                }
+            }    
         }
+        else if(LHS->dataType == RHS->dataType && LHS->dataType == INT_TYPE){
+            switch(node->semantic_value.exprSemanticValue.op.binaryOp){
+                case BINARY_OP_EQ:
+                case BINARY_OP_GE:
+                case BINARY_OP_LE:
+                case BINARY_OP_NE:
+                case BINARY_OP_GT:
+                case BINARY_OP_LT:
+                case BINARY_OP_AND:
+                case BINARY_OP_OR:
+                    logical_op_type = FLOAT_TYPE;
+                    node->dataType = INT_TYPE;
+                    node->regType = T_REG;
+                    node->reg[T_REG] = allocateTIntReg();
+                    break;
+                default:
+                    node->regType = T_REG;
+                    node->reg[T_REG] = LHS->reg[T_REG];
+                    break;
+            }
+        }
+        else if(LHS->dataType == RHS->dataType){
+            logical_op_type = INT_TYPE;
+            node->regType = T_REG;
+            node->reg[node->regType] = LHS->reg[T_REG];
+        }
+
+        switch(node->semantic_value.exprSemanticValue.op.binaryOp){
+            case BINARY_OP_ADD:
+            case BINARY_OP_SUB:
+            case BINARY_OP_MUL:
+            case BINARY_OP_DIV:
+                if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_ADD){
+                    fprintf(outputFile, "\tadd\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                }
+                else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_SUB){
+                    fprintf(outputFile, "\tsub\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                }
+                else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_MUL){
+                    fprintf(outputFile, "\tmul\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                }
+                else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_DIV){
+                    fprintf(outputFile, "\tdiv\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                }
+
+                if(node->dataType == INT_TYPE){
+                    freeTIntReg(RHS->reg[T_REG]);
+                }    
+                else{
+                    freeTFloatReg(RHS->reg[T_REG]);
+                }    
+                break;
+            case BINARY_OP_EQ:
+            case BINARY_OP_GE:
+            case BINARY_OP_LE:
+            case BINARY_OP_NE:
+            case BINARY_OP_GT:
+            case BINARY_OP_LT:
+                if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_EQ){
+                    fprintf(outputFile, "\txor\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    fprintf(outputFile, "\tseqz\tt%d,t%d\n", node->reg[T_REG], LHS->reg[T_REG]);
+                }
+                else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_GE){
+                    fprintf(outputFile, "\tslt\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    fprintf(outputFile, "\txori\tt%d,t%d,1\n", node->reg[T_REG], LHS->reg[T_REG]);
+                }
+                else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_LE){
+                    fprintf(outputFile, "\tslt\tt%d,t%d,t%d\n", RHS->reg[T_REG], RHS->reg[T_REG], LHS->reg[T_REG]);
+                    fprintf(outputFile, "\txori\tt%d,t%d,1\n", node->reg[T_REG], RHS->reg[T_REG]);
+                }
+                else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_NE){
+                    fprintf(outputFile, "\txor\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    fprintf(outputFile, "\tsnez\tt%d,t%d\n", node->reg[T_REG], LHS->reg[T_REG]);
+                }
+                else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_GT){
+                    fprintf(outputFile, "\tslt\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                }
+                else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_LT){
+                    fprintf(outputFile, "\tslt\tt%d,t%d,t%d\n", RHS->reg[T_REG], RHS->reg[T_REG], LHS->reg[T_REG]);
+                }
+
+                if(LHS->dataType == FLOAT_TYPE){
+                    freeTFloatReg(LHS->reg[T_REG]);
+                }
+                if(RHS->dataType == INT_TYPE){
+                    freeTIntReg(RHS->reg[T_REG]);
+                }
+                else {
+                    freeTFloatReg(RHS->reg[T_REG]);
+                }
+                break;
+
+            case BINARY_OP_AND:{
+                int short_circuit_label = labelCount;
+                int end_label = labelCount + 1;
+                labelCount++;
+                fprintf(outputFile, "\tbeq\tt%d,x0,_LABEL_%d\n", LHS->reg[T_REG], short_circuit_label);
+                
+                /* RHS */
+                fprintf(outputFile, "\tj\t_LABEL_%d\n", end_label);
+                fprintf(outputFile, "_LABEL_%d:\n", end_label);
+                genExprRelated(RHS);
+                fprintf(outputFile, "\tand\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                fprintf(outputFile, "\tj\t_LABEL_%d\n", short_circuit_label);
+                fprintf(outputFile, "_LABEL_%d:\n", short_circuit_label);
+                fprintf(outputFile, "\tand\tt%d,t%d,1\n", node->reg[T_REG], LHS->reg[T_REG]);
+                
+                if(LHS->dataType == FLOAT_TYPE){
+                    freeTFloatReg(LHS->reg[T_REG]);
+                }
+                else if(LHS->reg[T_REG] == node->reg[T_REG]){
+                    freeTIntReg(LHS->reg[T_REG]);
+                }    
+                if(RHS->dataType == FLOAT_TYPE){
+                    freeTFloatReg(RHS->reg[T_REG]);
+                }
+                else if(RHS->reg[T_REG] == node->reg[T_REG]){
+                    freeTIntReg(RHS->reg[T_REG]);
+                }
+                break;
+            }
+            
+            case BINARY_OP_OR:{
+                int short_circuit_label = labelCount;
+                int end_label = labelCount + 1;
+                labelCount++;
+                fprintf(outputFile, "\tbne\tt%d,x0,_LABEL_%d\n", LHS->reg[T_REG], short_circuit_label);
+                
+                /* RHS */
+                fprintf(outputFile, "\tj\t_LABEL_%d\n", end_label);
+                fprintf(outputFile, "_LABEL_%d:\n", end_label);
+                genExprRelated(RHS);
+                fprintf(outputFile, "\tor\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                fprintf(outputFile, "\tj\t_LABEL_%d\n", short_circuit_label);
+                fprintf(outputFile, "_LABEL_%d:\n", short_circuit_label);
+                fprintf(outputFile, "\tor\tt%d,t%d,1\n", node->reg[T_REG], LHS->reg[T_REG]);
+                
+                if(LHS->dataType == FLOAT_TYPE){
+                    freeTFloatReg(LHS->reg[T_REG]);
+                }
+                else if(LHS->reg[T_REG] == node->reg[T_REG]){
+                    freeTIntReg(LHS->reg[T_REG]);
+                }    
+                if(RHS->dataType == FLOAT_TYPE){
+                    freeTFloatReg(RHS->reg[T_REG]);
+                }
+                else if(RHS->reg[T_REG] == node->reg[T_REG]){
+                    freeTIntReg(RHS->reg[T_REG]);
+                }
+                break;
+            }    
+        }
+
     }
 }
-
+        
 void genVariableRValue(AST_NODE *node){
     SymbolTableEntry *entry = node->semantic_value.identifierSemanticValue.symbolTableEntry;
     DATA_TYPE dataType = getDataTypeByEntry(entry);
