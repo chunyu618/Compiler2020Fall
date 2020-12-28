@@ -1,7 +1,8 @@
 #ifndef __HEADER_H__
 #define __HEADER_H__
 
-#define MAX_ARRAY_DIMENSION 10
+#define MAX_ARRAY_DIMENSION 32
+
 
 typedef enum DATA_TYPE
 {
@@ -14,6 +15,7 @@ typedef enum DATA_TYPE
     NONE_TYPE,//for nodes like PROGRAM_NODE which has no type
     ERROR_TYPE
 } DATA_TYPE;
+
 
 typedef enum IDENTIFIER_KIND
 {
@@ -48,6 +50,8 @@ typedef enum UNARY_OPERATOR
 //C_type= type of constant ex: 1, 3.3, "const string"
 //do not modify, or lexer might break
 typedef enum C_type {INTEGERC,FLOATC,STRINGC} C_type;
+
+typedef enum REG_TYPE {T_REG, S_REG} REG_TYPE;
 
 typedef enum STMT_KIND
 {
@@ -153,7 +157,9 @@ struct AST_NODE {
 	struct AST_NODE *parent;
 	struct AST_NODE *rightSibling;
 	struct AST_NODE *leftmostSibling;
-	AST_TYPE nodeType;
+	REG_TYPE regType;
+    int reg[2];
+    AST_TYPE nodeType;
     DATA_TYPE dataType;
 	int linenumber;
 	union {
@@ -168,7 +174,9 @@ typedef struct AST_NODE AST_NODE;
 
 AST_NODE *Allocate(AST_TYPE type);
 void semanticAnalysis(AST_NODE *root);
+void printNode(AST_NODE *root, int level, int levelCount[]);
+void printLevel(int level, int levelCount[]);
 void codeGeneration(AST_NODE *root);
-void printGV(AST_NODE *root, char *fileName);
+DATA_TYPE processTypeNode(AST_NODE *typeNode);
 
 #endif

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+char *IDENTIFIER_KIND_string[] = {"NORMAL_ID", "ARRAY_ID", "WITH_INIT_ID"};
 
 char *AST_TYPE_string[] = {"PROGRAM", "GLOBAL_DECL_LIST", "GLOBAL_DECL", "DECL_LIST", "FUNCTION_DECL", "PARAM_LIST", "PARAM", "DIM_FN", "DIMFN1", "EXPR_NULL", "BLOCK", "DECL", "TYPE_DECL", "VAR_DECL",
     "TYPE", "STRUCT_TYPE", "DEF_LIST", "DEF", "OPT_TAG", "TAG", "ID_LIST", "DIM_DECL", "CEXPR", "MCEXPR", "CFACTOR", "INIT_ID_LIST", "INIT_ID", "STMT_LIST", "STMT", "ASSIGN_EXPR_LIST",
@@ -196,3 +197,195 @@ int printGVNode(FILE *fp, AST_NODE* node, int count)
     return countAfterCheckSibling;
 }
 
+void printNode(AST_NODE *root, int level, int levelCount[]){
+    //printf("%d", level);
+    AST_NODE *child;
+    switch(root->nodeType){
+        case PROGRAM_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            printf("-- Program Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
+            break;
+        case DECLARATION_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            printf("-- Declaration Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
+            break;
+        case IDENTIFIER_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            char type[32] = {};
+            char name[32] = {};
+            strcpy(type, IDENTIFIER_KIND_string[root->semantic_value.identifierSemanticValue.kind]);
+            strcpy(name, root->semantic_value.identifierSemanticValue.identifierName);
+            printf("-- Identifier Node:\n");
+            printLevel(level + 1, levelCount);
+            printf("-- type %s\n", type);
+            levelCount[level] = 0;
+            printLevel(level + 1, levelCount);
+            printf("-- name %s\n", name);
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
+            break;
+        case PARAM_LIST_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            printf("-- Parameters List Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
+            break;
+        case NUL_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            printf("-- NULL Node\n");
+            break;
+        case BLOCK_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            printf("-- Block Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
+            break;
+        case VARIABLE_DECL_LIST_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            printf("-- Variables Declaration List Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
+            break;
+        case STMT_LIST_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            printf("-- Statements List Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
+            break;
+        case STMT_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            printf("-- Statement Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
+            break;
+        case EXPR_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            printf("-- Expression Node\n");
+            printf("-------%d\n", root->semantic_value.exprSemanticValue.isConstEval);
+            if(root->semantic_value.exprSemanticValue.isConstEval){
+                printLevel(level, levelCount);
+                printf("-- Const Value is %d\n", root->semantic_value.exprSemanticValue.constEvalValue.iValue);
+            }
+            else{
+                child = root->child;
+                while(child != NULL){
+                    printNode(child, level + 1, levelCount);
+                    child = child->rightSibling;
+                    if(child != NULL && child->rightSibling == NULL){
+                        levelCount[level] = 0;
+                    }
+                }
+            }    
+            break;
+        case CONST_VALUE_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            printf("-- Const Value Node\n");
+            int val = root->semantic_value.const1->const_u.intval;
+            printLevel(level, levelCount);
+            printf("-- Value is %d\n", val);
+            break;
+        case NONEMPTY_ASSIGN_EXPR_LIST_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+            printf("-- Non-empty Assignment Expression Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
+            break;
+        case NONEMPTY_RELOP_EXPR_LIST_NODE:
+            levelCount[level] = 1;
+            printLevel(level, levelCount);
+
+            printf("-- Non-empty Relop Expression Node\n");
+            child = root->child;
+            while(child != NULL){
+                printNode(child, level + 1, levelCount);
+                child = child->rightSibling;
+                if(child != NULL && child->rightSibling == NULL){
+                    levelCount[level] = 0;
+                }
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+void printLevel(int level, int levelCount[]){
+    //printf("|");
+    for(int i = 0; i < level - 1; i++){
+        (levelCount[i])? printf("    |") : printf("    ");
+    }
+    if(level > 0){
+        (levelCount[level - 1])? printf("    |") : printf("    `");
+    }
+    //printf("|");
+}
