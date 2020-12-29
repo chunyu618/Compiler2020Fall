@@ -284,7 +284,7 @@ void genBlockNode(AST_NODE *root){
 }
 
 void genGeneralNode(AST_NODE *node){
-    printf("General Node type is %d\n", node->nodeType);
+    //printf("General Node type is %d\n", node->nodeType);
     switch(node->nodeType){
         case VARIABLE_DECL_LIST_NODE:
             genLocalDeclarationList(node);
@@ -376,7 +376,7 @@ void genFunctionCall(AST_NODE *node){
 
 void genExprRelated(AST_NODE *node){
     //printf("gen Expr Related\n");
-    printf("ID name %s, type %d\n", getIdByNode(node), node->nodeType);
+    //printf("ID name %s, type %d\n", getIdByNode(node), node->nodeType);
     switch(node->nodeType){
         case EXPR_NODE:
             genExpr(node);
@@ -397,7 +397,7 @@ void genExprRelated(AST_NODE *node){
 }
 
 void genConstValue(AST_NODE *node){
-    printf("Const value data type is %d\n", node->dataType);
+    //printf("Const value data type is %d\n", node->dataType);
     C_type constType = node->semantic_value.const1->const_type; 
     if(constType == INTEGERC){
         printf("int\n");
@@ -809,7 +809,7 @@ void genAssignOrExpr(AST_NODE *node){
 void genAssignmentStmt(AST_NODE *node){
     AST_NODE *LHS = node->child, *RHS = node->child->rightSibling;
     genExprRelated(RHS);
-    printf("LHS is %d, RHS is %d\n", LHS->dataType, RHS->dataType);
+    //printf("LHS is %d, RHS is %d\n", LHS->dataType, RHS->dataType);
     if(LHS->dataType != RHS->dataType){
         if(LHS->dataType == INT_TYPE){
            genFloatToInt(node, T_REG); 
@@ -837,12 +837,15 @@ void genAssignmentStmt(AST_NODE *node){
 }
 
 void genWhileStmt(AST_NODE *node){
+    printf("Start generate While stmt.\n");
     AST_NODE *condition = node->child;
     AST_NODE *block = condition->rightSibling;
-    int startLabel = ++labelCount;
-    int endLabel = ++labelCount;
+    labelCount++;
+    int startLabel = labelCount;
+    labelCount++;
+    int endLabel = labelCount;
 
-    fprintf(outputFile,"_LABEL_%d\n", startLabel);
+    fprintf(outputFile,"_LABEL_%d:\n", startLabel);
     genExprRelated(condition);
     if(condition->dataType == INT_TYPE){
         fprintf(outputFile, "\tbeqz\tt%d,_LABEL_%d\n", condition->reg[T_REG], endLabel);
@@ -853,7 +856,8 @@ void genWhileStmt(AST_NODE *node){
         freeTFloatReg(condition->reg[T_REG]);
     }
     genStmt(block);
-    fprintf(outputFile, "_LABEL_%d\n", endLabel);
+    fprintf(outputFile,"\tj\t_LABEL_%d\n", startLabel);
+    fprintf(outputFile, "_LABEL_%d:\n", endLabel);
 }
 
 void genIfStmt(AST_NODE *node){
