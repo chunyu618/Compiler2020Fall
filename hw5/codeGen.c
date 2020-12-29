@@ -10,7 +10,7 @@ char *functionName;
 int sIntRegs[12] = {};
 int sFloatRegs[12] = {};
 int tIntRegs[7] = {};
-int tFloatRegs[7] = {};
+int tFloatRegs[12] = {};
 int constNumber = 0;
 int labelCount = 0;
 static int localVarOffset;
@@ -88,8 +88,8 @@ void genFloatToInt(AST_NODE *node, REG_TYPE regType){
         freeSFloatReg(node->reg[T_REG]);
         old = 's';
     }
-    fprintf(outputFile, "\tfcvt.w.s\tf%c%d,%c%d,rtz\n", new, tmp, old, node->reg[node->regType]);
-    node->regType = (new == T_REG)? T_REG : S_REG;
+    fprintf(outputFile, "\tfcvt.w.s\t%c%d,f%c%d,rtz\n", new, tmp, old, node->reg[node->regType]);
+    node->regType = (new == 't')? T_REG : S_REG;
     node->reg[node->regType] = tmp;
     return;
 }
@@ -114,8 +114,9 @@ void genIntToFloat(AST_NODE *node, REG_TYPE regType){
         old = 's';
     }
     fprintf(outputFile, "\tfcvt.s.w\tf%c%d,%c%d\n", new, tmp, old, node->reg[node->regType]);
-    node->regType = (new == T_REG)? T_REG : S_REG;
-    node->reg[node->regType] = tmp;
+    node->regType = (new == 't')? T_REG : S_REG;
+    node->reg[T_REG] = tmp;
+    printf("tmp  is %d\n", tmp);
     return;
 }
 
@@ -150,24 +151,61 @@ void codeGeneration(AST_NODE *root){
 }
 
 void genPrologue(){
+    fprintf(outputFile, "_Prologue_start:\n");
     fprintf(outputFile, ".text\n");
     fprintf(outputFile, "_start_%s:\n", functionName); /* Generation of function start label*/
     fprintf(outputFile, "\tsd\tra,0(sp)\n");           /* sd    ra,0(sp) */
     fprintf(outputFile, "\tsd\tfp,-8(sp)\n");          /* sd    fp,-8(sp)  */
     fprintf(outputFile, "\taddi\tfp,sp,-8\n");         /* addi  fp,sp,-8  */ 
     fprintf(outputFile, "\taddi\tsp,sp,-16\n");        /* addi  sp,sp,-16  */
-
-    
+    /* prepare frame */
+    fprintf(outputFile, "\tla\tra,_frameSize_%s\n", functionName);
+    fprintf(outputFile, "\tlw\tra,0(ra)\n");
+    fprintf(outputFile, "\tsub\tsp,sp,ra\n");
+    int size = 8;
+    for(int i = 0; i < 7; i++){
+        fprintf(outputFile, "\tsw\tt%d,%d(sp)\n", i, size);
+        size += 8;
+    }
+    for(int i = 0; i < 12; i++){
+        fprintf(outputFile, "\tfsw\tft%d,%d(sp)\n", i, size);
+        size += 8;
+    }
+    for(int i = 0; i < 8; i++){
+        fprintf(outputFile, "\tsw\ta%d,%d(sp)\n", i, size);
+        size += 8;
+    }
+    for(int i = 0; i < 8; i++){
+        fprintf(outputFile, "\tfsw\tfa%d,%d(sp)\n", i, size);
+        size += 8;
+    }
 }   
 
 void genEpilogue(){
+    fprintf(outputFile, "_Epilogue_start:\n");
     /* Restore */
+    int size = 8;
+    for(int i = 0; i < 7; i++){
+        fprintf(outputFile, "\tlw\tt%d,%d(sp)\n", i, size);
+        size += 8;
+    }
+    for(int i = 0; i < 12; i++){
+        fprintf(outputFile, "\tflw\tft%d,%d(sp)\n", i, size);
+        size += 8;
+    }
+    for(int i = 0; i < 8; i++){
+        fprintf(outputFile, "\tlw\ta%d,%d(sp)\n", i, size);
+        size += 8;
+    }
+    for(int i = 0; i < 8; i++){
+        fprintf(outputFile, "\tflw\tfa%d,%d(sp)\n", i, size);
+        size += 8;
+    }
     fprintf(outputFile, "\tld\tra,8(fp)\n");          /* ld    ra, 8(fp) */
     fprintf(outputFile, "\tmv\tsp,fp\n");             /* mv    sp, fp */  
     fprintf(outputFile, "\taddi\tsp,sp,8\n");         /* addi  sp, sp, 8 */
     fprintf(outputFile, "\tld\tfp,0(fp)\n");          /* ld    fp, 0(fp) */
     fprintf(outputFile, "\tjr\tra\n");                /* jr    ra */
-
 }
 
 void genProgram(AST_NODE *root){
@@ -273,7 +311,8 @@ void genFunctionDeclaration(AST_NODE *root){
     localVarOffset = 0;
     genBlockNode(paramList->rightSibling);
     genEpilogue();
-    
+    fprintf(outputFile, ".data\n");
+    fprintf(outputFile, "_frameSize_%s:  .word  %d\n", functionName, -localVarOffset + 36*8);
 }
 
 
@@ -456,7 +495,7 @@ void genLocalDeclaration(AST_NODE *node){
         }
         TypeDescriptorKind kind = entry->attribute->attr.typeDescriptor->kind;
         if(kind == SCALAR_TYPE_DESCRIPTOR){
-            localVarOffset -= 4;
+            localVarOffset -= 8;
             entry->offset = localVarOffset;
             if(id->semantic_value.identifierSemanticValue.kind == WITH_INIT_ID){
                 AST_NODE *relop = id->child;
@@ -473,7 +512,7 @@ void genLocalDeclaration(AST_NODE *node){
             }
         }
         else if(kind == ARRAY_TYPE_DESCRIPTOR){
-            int size = 4;
+            int size = 8;
             ArrayProperties arrayProperty = entry->attribute->attr.typeDescriptor->properties.arrayProperties;
             for(int dim = 0 ; dim < arrayProperty.dimension ; dim++){
                 size *= arrayProperty.sizeInEachDimension[dim];
@@ -558,16 +597,20 @@ void genExpr(AST_NODE *node){
         }
         
 
-        //printf("LHS is %s type %d, RHS is %s type %d\n", getIdByNode(LHS), LHS->dataType, getIdByNode(RHS), RHS->dataType);
+        printf("LHS is %s type %d, RHS is %s type %d\n", getIdByNode(LHS), LHS->dataType, getIdByNode(RHS), RHS->dataType);
         DATA_TYPE logical_op_type;
         if(LHS->dataType != RHS->dataType){
-            if(node->semantic_value.exprSemanticValue.op.binaryOp != BINARY_OP_AND && node->semantic_value.exprSemanticValue.op.binaryOp != BINARY_OP_AND){
-                printf("Different!!\n");  
+            printf("Different!!\n");  
+            if(node->semantic_value.exprSemanticValue.op.binaryOp != BINARY_OP_AND && node->semantic_value.exprSemanticValue.op.binaryOp != BINARY_OP_OR){
                 if(LHS->dataType == INT_TYPE){
                     genIntToFloat(LHS, T_REG);
+                    node->regType = T_REG;
+                    node->reg[node->regType] = LHS->reg[T_REG];
                 }
                 else if(RHS->dataType == INT_TYPE){
                     genIntToFloat(RHS, T_REG);
+                    node->regType = T_REG;
+                    node->reg[node->regType] = LHS->reg[T_REG];
                 }
             }
             else{
@@ -581,7 +624,7 @@ void genExpr(AST_NODE *node){
                 }
             }    
         }
-        else if(LHS->dataType == RHS->dataType && LHS->dataType == INT_TYPE){
+        else if(LHS->dataType == RHS->dataType && LHS->dataType == FLOAT_TYPE){
             switch(node->semantic_value.exprSemanticValue.op.binaryOp){
                 case BINARY_OP_EQ:
                 case BINARY_OP_GE:
@@ -667,10 +710,10 @@ void genExpr(AST_NODE *node){
                     fprintf(outputFile, "\tsnez\tt%d,t%d\n", node->reg[T_REG], LHS->reg[T_REG]);
                 }
                 else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_GT){
-                    fprintf(outputFile, "\tslt\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
+                    fprintf(outputFile, "\tslt\tt%d,t%d,t%d\n", LHS->reg[T_REG], RHS->reg[T_REG], LHS->reg[T_REG]);
                 }
                 else if(node->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_LT){
-                    fprintf(outputFile, "\tslt\tt%d,t%d,t%d\n", RHS->reg[T_REG], RHS->reg[T_REG], LHS->reg[T_REG]);
+                    fprintf(outputFile, "\tslt\tt%d,t%d,t%d\n", LHS->reg[T_REG], LHS->reg[T_REG], RHS->reg[T_REG]);
                 }
 
                 if(LHS->dataType == FLOAT_TYPE){
@@ -809,23 +852,25 @@ void genAssignOrExpr(AST_NODE *node){
 void genAssignmentStmt(AST_NODE *node){
     AST_NODE *LHS = node->child, *RHS = node->child->rightSibling;
     genExprRelated(RHS);
-    //printf("LHS is %d, RHS is %d\n", LHS->dataType, RHS->dataType);
+    printf("Assign LHS is %d, RHS is %d\n", LHS->dataType, RHS->dataType);
     if(LHS->dataType != RHS->dataType){
         if(LHS->dataType == INT_TYPE){
-           genFloatToInt(node, T_REG); 
+            genFloatToInt(RHS, T_REG); 
         }
         else if(LHS->dataType == FLOAT_TYPE){
-            genIntToFloat(node, T_REG);
+            genIntToFloat(RHS, T_REG);
         }
     }
+    printf("Assign LHS is %d, RHS is %d\n", LHS->dataType, RHS->dataType);
     IDENTIFIER_KIND LHSKind = LHS->semantic_value.identifierSemanticValue.kind;
     SymbolTableEntry *LHSEntry = LHS->semantic_value.identifierSemanticValue.symbolTableEntry;
     if(LHSKind == NORMAL_ID){
         if(LHSEntry->scope > 0){
             printf("Scope is %d\n", LHSEntry->scope);
-            //printf("LHS node")
             if(LHS->dataType == INT_TYPE){
+                printf("In LHS\n");
                 fprintf(outputFile, "\tsw\tt%d,%d(s0)\n", RHS->reg[T_REG], LHSEntry->offset);
+                printf("\tsw\tt%d,%d(s0)\n", RHS->reg[T_REG], LHSEntry->offset);
                 freeTIntReg(RHS->reg[T_REG]);
             }
             else if(LHS->dataType == FLOAT_TYPE){
@@ -840,10 +885,10 @@ void genWhileStmt(AST_NODE *node){
     printf("Start generate While stmt.\n");
     AST_NODE *condition = node->child;
     AST_NODE *block = condition->rightSibling;
-    labelCount++;
+    
     int startLabel = labelCount;
+    int endLabel = labelCount + 1;
     labelCount++;
-    int endLabel = labelCount;
 
     fprintf(outputFile,"_LABEL_%d:\n", startLabel);
     genExprRelated(condition);
