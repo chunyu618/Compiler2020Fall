@@ -13,6 +13,7 @@ int tIntRegs[7] = {};
 int tFloatRegs[12] = {};
 int constNumber = 0;
 int labelCount = 0;
+int ifWithReturn = 0;
 static int localVarOffset;
 
 static __inline__ DATA_TYPE getDataTypeByEntry(SymbolTableEntry* entry){return entry->attribute->attr.typeDescriptor->properties.dataType;}
@@ -142,6 +143,7 @@ void genAssignOrExpr(AST_NODE *node);
 void genAssignmentStmt(AST_NODE *node);
 void genWhileStmt(AST_NODE *node);
 void genIfStmt(AST_NODE *node);
+void genReturnStmt(AST_NODE *node);
 
 void codeGeneration(AST_NODE *root){
     outputFile = fopen("output.s", "w+");
@@ -376,8 +378,7 @@ void genStmt(AST_NODE *node){
                 genFunctionCall(node);
                 break;
             case RETURN_STMT:
-                /* TODO */
-                //genReturnStmt(node);
+                genReturnStmt(node);
                 break;
         }
     }
@@ -388,6 +389,7 @@ void genFunctionCall(AST_NODE *node){
     //printf("Function Name is %s\n", functionName);
     //printf("Function name address %d\n", node->child->rightSibling->child->dataType);
     AST_NODE *relop_expr = node->child->rightSibling;
+    FunctionSignature *signature = node->child->semantic_value.identifierSemanticValue.symbolTableEntry->attribute->attr.functionSignature;
     if(strcmp(functionName, "write") == 0){
         genExprRelated(relop_expr->child);
         //printf("expr type is %d\n", relop_expr->child->dataType);
@@ -410,6 +412,21 @@ void genFunctionCall(AST_NODE *node){
             freeTIntReg(relop_expr->child->reg[T_REG]);
             fprintf(outputFile, "\tcall\t_write_str\n");
         }
+    }
+    else if(strcmp(functionName, "read") == 0){
+        fprintf(outputFile, "\tcall\t_read_int\n");
+        node->reg[T_REG] = allocateTIntReg();
+        fprintf(outputFile, "\tmv\tt%d,a0\n", node->reg[T_REG]);
+        fprintf(outputFile, "\tstr\tt%d,-8(fp)\n", node->reg[T_REG]);
+    }
+    else if(strcmp(functionName, "fread") == 0){
+        fprintf(outputFile, "\tcall\t_read_float\n");
+        node->reg[T_REG] = allocateTFloatReg();
+        fprintf(outputFile, "\tfmv.s\tft%d,fa0\n", node->reg[T_REG]);
+        fprintf(outputFile, "\tstr\tft%d,-8(fp)\n", node->reg[T_REG]);
+    }
+    else if(signature->parametersCount == 0){
+        DATA_TYPE dataType = signature->returnType;
     }
 }
 
@@ -459,7 +476,7 @@ void genConstValue(AST_NODE *node){
         constNumber++;
     }
     else if(constType == STRINGC){
-        printf("string\n");
+        //printf("string\n");
         node->regType = T_REG;
         node->reg[T_REG] = allocateTIntReg();
         fprintf(outputFile, ".data\n");
@@ -729,7 +746,8 @@ void genExpr(AST_NODE *node){
 
             case BINARY_OP_AND:{
                 int short_circuit_label = labelCount;
-                int end_label = labelCount + 1;
+                labelCount++;
+                int end_label = labelCount;
                 labelCount++;
                 fprintf(outputFile, "\tbeq\tt%d,x0,_LABEL_%d\n", LHS->reg[T_REG], short_circuit_label);
                 
@@ -759,7 +777,8 @@ void genExpr(AST_NODE *node){
             
             case BINARY_OP_OR:{
                 int short_circuit_label = labelCount;
-                int end_label = labelCount + 1;
+                labelCount++;
+                int end_label = labelCount;
                 labelCount++;
                 fprintf(outputFile, "\tbne\tt%d,x0,_LABEL_%d\n", LHS->reg[T_REG], short_circuit_label);
                 
@@ -887,7 +906,8 @@ void genWhileStmt(AST_NODE *node){
     AST_NODE *block = condition->rightSibling;
     
     int startLabel = labelCount;
-    int endLabel = labelCount + 1;
+    labelCount++;
+    int endLabel = labelCount;
     labelCount++;
 
     fprintf(outputFile,"_LABEL_%d:\n", startLabel);
@@ -896,6 +916,7 @@ void genWhileStmt(AST_NODE *node){
         fprintf(outputFile, "\tbeqz\tt%d,_LABEL_%d\n", condition->reg[T_REG], endLabel);
         freeTIntReg(condition->reg[T_REG]);
     }
+    /* Float Type problem not solved */
     else if(condition->dataType == FLOAT_TYPE){
         fprintf(outputFile, "\tbeqz\tft%d,_LABEL_%d\n", condition->reg[T_REG], endLabel);
         freeTFloatReg(condition->reg[T_REG]);
@@ -906,5 +927,59 @@ void genWhileStmt(AST_NODE *node){
 }
 
 void genIfStmt(AST_NODE *node){
+    AST_NODE *condition = node->child;
+    AST_NODE *ifBlock = condition->rightSibling;
+    AST_NODE *elseBlock = ifBlock->rightSibling;
+    
+    genExprRelated(condition);
+    int endLabel, elseLabel;
+    if(elseBlock == NULL){
+        endLabel = labelCount;
+        labelCount++;
+        if(condition->dataType == INT_TYPE){
+            fprintf(outputFile, "\tbeqz\tt%d,_LABEL_%d\n", condition->reg[T_REG], endLabel);
+            freeTIntReg(condition->reg[T_REG]);
+        }
+        /* Float Type problem not solved */
+        else if(condition->dataType == FLOAT_TYPE){
+            fprintf(outputFile, "\tbeqz\tft%d,_LABEL_%d\n", condition->reg[T_REG], endLabel);
+            freeTFloatReg(condition->reg[T_REG]);
+        }
+        genStmt(ifBlock);
+        fprintf(outputFile, "_LABEL_%d:\n", endLabel);
+        return;
+    }
+    //printf("else block is not NULL\n");   
+    elseLabel = labelCount;
+    labelCount++;
+    endLabel = labelCount;
+    labelCount++;
+    if(condition->dataType == INT_TYPE){
+        fprintf(outputFile, "\tbeqz\tt%d,_LABEL_%d\n", condition->reg[T_REG], elseLabel);
+        freeTIntReg(condition->reg[T_REG]);    
+    }
+    /* Float Type problem not solved */
+    else if(condition->dataType == FLOAT_TYPE){
+        fprintf(outputFile, "\tbeqz\tft%d,_LABEL_%d\n", condition->reg[T_REG], elseLabel);
+        freeTFloatReg(condition->reg[T_REG]);
+    }
+    ifWithReturn = 0;    
+    genStmt(ifBlock);
+    if(ifWithReturn == 0){
+        fprintf(outputFile, "\tj\t_LABEL_%d\n", endLabel);
+    }
+    fprintf(outputFile, "_LABEL_%d:\n", elseLabel);
+    ifWithReturn = 0;    
+    genStmt(elseBlock);
+     
+    if(ifWithReturn == 0){
+        fprintf(outputFile, "\tj\t_LABEL_%d\n", endLabel);
+    }
+    fprintf(outputFile, "_LABEL_%d:\n", endLabel);
+    ifWithReturn = 0;    
+}
 
+void genReturnStmt(AST_NODE *node){
+    ifWithReturn = 1;
+    if()
 }

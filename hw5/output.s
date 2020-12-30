@@ -43,10 +43,33 @@ _start_MAIN:
 	fsw	fa5,264(sp)
 	fsw	fa6,272(sp)
 	fsw	fa7,280(sp)
+	li	t0,1
+	sd	t0,-8(s0)
+	lw	t0,-8(s0)
+	li	t1,0
+	xor	t0,t0,t1
+	seqz	t0,t0
+	beqz	t0,_LABEL_0
 .data
-_CONSTANT_0:  .ascii  "hello\n\0"
+_CONSTANT_0:  .ascii  "In If Node\n\0"
 .text
 	la	t0,_CONSTANT_0
+	mv	a0,t0
+	call	_write_str
+	j	_LABEL_1
+_LABEL_0:
+.data
+_CONSTANT_1:  .ascii  "In else Node\n\0"
+.text
+	la	t0,_CONSTANT_1
+	mv	a0,t0
+	call	_write_str
+	j	_LABEL_1
+_LABEL_1:
+.data
+_CONSTANT_2:  .ascii  "finish\n\0"
+.text
+	la	t0,_CONSTANT_2
 	mv	a0,t0
 	call	_write_str
 _Epilogue_start:
@@ -91,4 +114,4 @@ _Epilogue_start:
 	ld	fp,0(fp)
 	jr	ra
 .data
-_frameSize_MAIN:  .word  344
+_frameSize_MAIN:  .word  296
