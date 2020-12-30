@@ -1139,6 +1139,7 @@ void checkReturnStmt(AST_NODE* returnNode){
     AST_NODE *functionNameNode = g_currentFunctionDecl->child->rightSibling;
     FunctionSignature *signature = retrieveSymbol(functionNameNode->semantic_value.identifierSemanticValue.identifierName)->attribute->attr.functionSignature;
     DATA_TYPE returnType;
+    printf("node type is %d\n", returnNode->child->nodeType);
     switch(returnNode->child->nodeType){
         case NUL_NODE:
             if(signature->returnType != VOID_TYPE){
@@ -1148,7 +1149,8 @@ void checkReturnStmt(AST_NODE* returnNode){
             break;
         case IDENTIFIER_NODE:
         case CONST_VALUE_NODE:
-        case EXPR_NODE: 
+        case EXPR_NODE:
+        case STMT_NODE:    
             returnType = processExprRelatedNode(returnNode->child);
             //printf("return type is %d, signature is %d\n", returnType, signature->returnType);
             if(returnType != signature->returnType){
@@ -1162,7 +1164,7 @@ void checkReturnStmt(AST_NODE* returnNode){
             }
             break;
         default:
-            printf("[DEBUG] Broken AST.\n");
+            printf("[DEBUG] test Broken AST.\n");
     }
 }
 

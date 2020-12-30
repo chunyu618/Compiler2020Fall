@@ -1,9 +1,7 @@
+int n = 123;
+int arr1[123], arr2[456], arr3[789];
+
+
 int MAIN(){
-    int a = 1;
-    if(a == 0){
-        write("In If Node\n");
-    }else{
-        write("In else Node\n");
-    }
-    write("finish\n");
+    arr1[10] = 12;
 }

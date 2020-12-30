@@ -1,5 +1,10 @@
-_Prologue_start:
+.data
+_n:  .word  123
+_arr1:  .word  984
+_arr2:  .word  3648
+_arr3:  .word  6312
 .text
+_MAIN_Prologue:
 _start_MAIN:
 	sd	ra,0(sp)
 	sd	fp,-8(sp)
@@ -27,52 +32,14 @@ _start_MAIN:
 	fsw	ft9,136(sp)
 	fsw	ft10,144(sp)
 	fsw	ft11,152(sp)
-	sw	a0,160(sp)
-	sw	a1,168(sp)
-	sw	a2,176(sp)
-	sw	a3,184(sp)
-	sw	a4,192(sp)
-	sw	a5,200(sp)
-	sw	a6,208(sp)
-	sw	a7,216(sp)
-	fsw	fa0,224(sp)
-	fsw	fa1,232(sp)
-	fsw	fa2,240(sp)
-	fsw	fa3,248(sp)
-	fsw	fa4,256(sp)
-	fsw	fa5,264(sp)
-	fsw	fa6,272(sp)
-	fsw	fa7,280(sp)
-	li	t0,1
-	sd	t0,-8(s0)
-	lw	t0,-8(s0)
-	li	t1,0
-	xor	t0,t0,t1
-	seqz	t0,t0
-	beqz	t0,_LABEL_0
-.data
-_CONSTANT_0:  .ascii  "In If Node\n\0"
+	li	t0,12
+	li	t2,10
+	la	t1,_arr1
+	slli	t2,t2,3
+	add	t2,t2,t1
+	sw	t0,0(s2)
 .text
-	la	t0,_CONSTANT_0
-	mv	a0,t0
-	call	_write_str
-	j	_LABEL_1
-_LABEL_0:
-.data
-_CONSTANT_1:  .ascii  "In else Node\n\0"
-.text
-	la	t0,_CONSTANT_1
-	mv	a0,t0
-	call	_write_str
-	j	_LABEL_1
-_LABEL_1:
-.data
-_CONSTANT_2:  .ascii  "finish\n\0"
-.text
-	la	t0,_CONSTANT_2
-	mv	a0,t0
-	call	_write_str
-_Epilogue_start:
+_MAIN_Epilogue:
 	lw	t0,8(sp)
 	lw	t1,16(sp)
 	lw	t2,24(sp)
@@ -92,26 +59,10 @@ _Epilogue_start:
 	flw	ft9,136(sp)
 	flw	ft10,144(sp)
 	flw	ft11,152(sp)
-	lw	a0,160(sp)
-	lw	a1,168(sp)
-	lw	a2,176(sp)
-	lw	a3,184(sp)
-	lw	a4,192(sp)
-	lw	a5,200(sp)
-	lw	a6,208(sp)
-	lw	a7,216(sp)
-	flw	fa0,224(sp)
-	flw	fa1,232(sp)
-	flw	fa2,240(sp)
-	flw	fa3,248(sp)
-	flw	fa4,256(sp)
-	flw	fa5,264(sp)
-	flw	fa6,272(sp)
-	flw	fa7,280(sp)
 	ld	ra,8(fp)
 	mv	sp,fp
 	addi	sp,sp,8
 	ld	fp,0(fp)
 	jr	ra
 .data
-_frameSize_MAIN:  .word  296
+_frameSize_MAIN:  .word  160
