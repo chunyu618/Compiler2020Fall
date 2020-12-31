@@ -1,12 +1,11 @@
-int n = 123;
-float arr1[123], arr2[456], arr3[789];
-
-
+int a, b, c, d, e, f;
 int MAIN(){
-    float out;
-    arr1[10] = fread();
-    arr1[11] = fread();
-    out = arr1[10] + arr1[11];
-    write(out);
-    write("\n");
+  a = 4;
+  b = 3;
+  c = 3;
+  d = 1;
+  e = 5;
+  f = 6;
+  write(a - a || read() || c - c);
+  write("\n");
 }

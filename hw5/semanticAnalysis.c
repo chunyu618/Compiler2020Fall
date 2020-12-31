@@ -1139,7 +1139,7 @@ void checkReturnStmt(AST_NODE* returnNode){
     AST_NODE *functionNameNode = g_currentFunctionDecl->child->rightSibling;
     FunctionSignature *signature = retrieveSymbol(functionNameNode->semantic_value.identifierSemanticValue.identifierName)->attribute->attr.functionSignature;
     DATA_TYPE returnType;
-    printf("node type is %d\n", returnNode->child->nodeType);
+    //printf("node type is %d\n", returnNode->child->nodeType);
     switch(returnNode->child->nodeType){
         case NUL_NODE:
             if(signature->returnType != VOID_TYPE){
@@ -1193,7 +1193,7 @@ void processBlockNode(AST_NODE* blockNode){
 
 
 void processStmtNode(AST_NODE* stmtNode){
-    printf("stmt node type is %s\n", NODE_TYPE_string[stmtNode->nodeType]);
+    //printf("stmt node type is %s\n", NODE_TYPE_string[stmtNode->nodeType]);
     switch(stmtNode->nodeType){
         case BLOCK_NODE:
             processBlockNode(stmtNode);

@@ -189,7 +189,7 @@ void newSegment(){
 }
 
 void printError(char *errMsg){
-    printf("%d\n", errMsg);
+    printf("%s\n", errMsg);
     exit(1);
 }
 
