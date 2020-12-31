@@ -549,7 +549,7 @@ void genFunctionCall(AST_NODE *node){
 
 void genExprRelated(AST_NODE *node){
     //printf("gen Expr Related\n");
-    //printf("ID name %s, type %d\n", getIdByNode(node), node->nodeType);
+    printf("ID name %s, type %d\n", getIdByNode(node), node->nodeType);
     switch(node->nodeType){
         case EXPR_NODE:
             genExpr(node);
@@ -573,9 +573,9 @@ void genConstValue(AST_NODE *node){
     //printf("Const value data type is %d\n", node->dataType);
     C_type constType = node->semantic_value.const1->const_type; 
     if(constType == INTEGERC){
-        printf("int\n");
         node->regType = T_REG;
         node->reg[T_REG] = allocateTIntReg();
+        printf("REG is %d\n", node->reg[T_REG]);
         printf("\tli\tt%d,%d\n", node->reg[T_REG], node->semantic_value.const1->const_u.intval);
         fprintf(outputFile, "\tli\tt%d,%d\n", node->reg[T_REG], node->semantic_value.const1->const_u.intval);
     }
@@ -1000,8 +1000,10 @@ void genExpr(AST_NODE *node){
 }
         
 void genVariableRValue(AST_NODE *node){
+    printf("Id is %s\n", getIdByNode(node));
     SymbolTableEntry *entry = node->semantic_value.identifierSemanticValue.symbolTableEntry;
-    DATA_TYPE dataType = getDataTypeByEntry(entry);
+    DATA_TYPE dataType = node->dataType;
+    printf("Variable datvaType is %d\n", dataType);
     if(dataType == FLOAT_TYPE){
         node->regType = T_REG;
         node->reg[T_REG] = allocateTFloatReg();
@@ -1012,6 +1014,7 @@ void genVariableRValue(AST_NODE *node){
     }
 
     IDENTIFIER_KIND kind = node->semantic_value.identifierSemanticValue.kind;
+    printf("kind is %d\n", kind);
     if(kind == NORMAL_ID){
         if(entry->scope > 0){
             //printf("Local Variable reference\n");
@@ -1038,9 +1041,16 @@ void genVariableRValue(AST_NODE *node){
     }
     else if(kind == ARRAY_ID){
         genArrayRef(node);
-        char n = (node->reg[node->regType] == T_REG)? 't' : 's';
-        char d = (node->child->reg[node->regType] == T_REG)? 't' : 's';
-        fprintf(outputFile, "\tlw\t%c%d,0(%c%d)\n", n, node->reg[node->regType], d, node->child->reg[node->regType]);
+        char n = (node->regType == T_REG)? 't' : 's';
+        char d = (node->child->regType == T_REG)? 't' : 's';
+        if(dataType == INT_TYPE){
+            fprintf(outputFile, "\tlw\t%c%d,0(%c%d)\n", n, node->reg[node->regType], d, node->child->reg[node->regType]);
+            //printf("\tlw\t%c%d,0(%c%d)\n", n, node->reg[node->regType], d, node->child->reg[node->regType]);
+        }
+        else if(dataType == FLOAT_TYPE){
+            fprintf(outputFile, "\tflw\tf%c%d,0(%c%d)\n", n, node->reg[node->regType], d, node->child->reg[node->regType]);
+        }
+
     }
 }
 
@@ -1105,9 +1115,22 @@ void genAssignmentStmt(AST_NODE *node){
     }
     else if(LHSKind == ARRAY_ID){
         genArrayRef(LHS);
-        char n = (LHS->reg[node->regType] == T_REG)? 't' : 's';
-        char d = (LHS->child->reg[node->regType] == T_REG)? 't' : 's';
-        fprintf(outputFile, "\tsw\t%c%d,0(%c%d)\n", n, LHS->reg[node->regType], d, LHS->child->reg[LHS->child->regType]);
+        char n = (RHS->regType == T_REG)? 't' : 's';
+        char d = (LHS->child->regType == T_REG)? 't' : 's';
+        if(LHS->dataType == INT_TYPE){
+            fprintf(outputFile, "\tsw\t%c%d,0(%c%d)\n", n, RHS->reg[RHS->regType], d, LHS->child->reg[LHS->child->regType]);
+        }
+        else if(LHS->dataType == FLOAT_TYPE){
+            fprintf(outputFile, "\tfsw\tf%c%d,0(%c%d)\n", n, RHS->reg[RHS->regType], d, LHS->child->reg[LHS->child->regType]);
+            
+        }
+    }
+
+    if(RHS->dataType == INT_TYPE){
+        freeIntReg(RHS);
+    }
+    else if(RHS->dataType == FLOAT_TYPE){
+        freeFloatReg(RHS);
     }
 }
 
@@ -1218,12 +1241,12 @@ void genReturnStmt(AST_NODE *node){
     fprintf(outputFile, "\tj\t_%s_Epilogue\n", functionName);
 }
 
-int genArrayRef(AST_NODE *node){
+void genArrayRef(AST_NODE *node){
     AST_NODE *dimList = node->child;
 
     if(dimList != NULL){
         int addr = allocateTIntReg();
-
+        printf("arr ref addr is %d\n", addr);
         genExprRelated(dimList);
         
         int dim = 1;
@@ -1234,6 +1257,7 @@ int genArrayRef(AST_NODE *node){
             fprintf(outputFile, "\taddi\tt%d,zero,%d\n", sizeReg, property.sizeInEachDimension[dim - 1]);
             genExprRelated(dimension);
             char tmp = (dimension->regType == T_REG)? 't' : 's';
+            /* offset = offset * dimSize[n - 1] + dimValue[n] */
             fprintf(outputFile, "\tmul\t%c%d,%c%d,t%d\n", d, dimList->reg[dimList->regType], d, dimList->reg[dimList->regType], sizeReg);
             fprintf(outputFile, "\tadd\t,%c%d,%c%d,%c%d\n", d, dimList->reg[dimList->regType], d, dimList->reg[dimList->regType], tmp, dimension->reg[dimension->regType]);
             freeTIntReg(sizeReg);
@@ -1249,8 +1273,12 @@ int genArrayRef(AST_NODE *node){
             fprintf(outputFile, "\tla\tt%d,_%s\n", addr, getIdByNode(node));
         }
         
+        /* addr = base + offset * 8 */
         fprintf(outputFile, "\tslli\t%c%d,%c%d,3\n", d, dimList->reg[dimList->regType], d, dimList->reg[dimList->regType]);
         fprintf(outputFile, "\tadd\t%c%d,%c%d,t%d\n", d, dimList->reg[dimList->regType], d, dimList->reg[dimList->regType], addr);
+        freeTIntReg(addr);
+        //node->regType = dimList->regType;
+        //node->reg[node->regType] = dimList->reg[dimList->regType];
         
     }
 }

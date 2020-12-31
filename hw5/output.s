@@ -32,12 +32,41 @@ _start_MAIN:
 	fsw	ft9,136(sp)
 	fsw	ft10,144(sp)
 	fsw	ft11,152(sp)
-	li	t0,12
-	li	t2,10
-	la	t1,_arr1
+	call	_read_float
+	fmv.s	fs0,fa0
+	li	t1,10
+	la	t0,_arr1
+	slli	t1,t1,3
+	add	t1,t1,t0
+	fsw	fs0,0(t1)
+	call	_read_float
+	fmv.s	fs0,fa0
+	li	t2,11
+	la	t0,_arr1
 	slli	t2,t2,3
-	add	t2,t2,t1
-	sw	t0,0(s2)
+	add	t2,t2,t0
+	fsw	fs0,0(t2)
+	li	t3,10
+	la	t0,_arr1
+	slli	t3,t3,3
+	add	t3,t3,t0
+	flw	ft0,0(t3)
+	li	t4,11
+	la	t0,_arr1
+	slli	t4,t4,3
+	add	t4,t4,t0
+	flw	ft1,0(t4)
+	fadd.s	ft0,ft0,ft1
+	fsw	ft0,-8(s0)
+	flw	ft0,-8(s0)
+	fmv.s	fa0,ft0
+	call	_write_float
+.data
+_CONSTANT_0:  .ascii  "\n\0"
+.text
+	la	t0,_CONSTANT_0
+	mv	a0,t0
+	call	_write_str
 .text
 _MAIN_Epilogue:
 	lw	t0,8(sp)
@@ -65,4 +94,4 @@ _MAIN_Epilogue:
 	ld	fp,0(fp)
 	jr	ra
 .data
-_frameSize_MAIN:  .word  160
+_frameSize_MAIN:  .word  168

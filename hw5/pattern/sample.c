@@ -1,7 +1,12 @@
 int n = 123;
-int arr1[123], arr2[456], arr3[789];
+float arr1[123], arr2[456], arr3[789];
 
 
 int MAIN(){
-    arr1[10] = 12;
+    float out;
+    arr1[10] = fread();
+    arr1[11] = fread();
+    out = arr1[10] + arr1[11];
+    write(out);
+    write("\n");
 }
