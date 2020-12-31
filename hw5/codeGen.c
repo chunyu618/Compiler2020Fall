@@ -170,7 +170,7 @@ int genSaveCallerReg(){
     for(int i = 0 ; i < 12 ; i++){
         if(sFloatRegs[i]){
             fprintf(outputFile, "\tfsw\tfs%d,%d(sp)\n", i, -8*count);
-            printf("\tfsw\tfs%d,%d(sp)\n", i, -8*count);
+            //printf("\tfsw\tfs%d,%d(sp)\n", i, -8*count);
             count++;
         }
     }
@@ -336,7 +336,7 @@ void genGlobalDeclaration(AST_NODE *root){
                         fprintf(outputFile, "_%s:  .word  0\n", getIdByNode(id));        
                     }
                     else if (dataType == FLOAT_TYPE){
-                        fprintf(outputFile, "_%s:  .word 0x00000000\n");
+                        fprintf(outputFile, "_%s:  .word 0x00000000\n", getIdByNode(id));
                     }
                 }
                 else if (idKind == WITH_INIT_ID){
@@ -488,18 +488,19 @@ void genFunctionCall(AST_NODE *node){
         relop_expr->regType = relop_expr->child->regType;
         relop_expr->reg[relop_expr->regType] = relop_expr->child->reg[relop_expr->child->regType];
         DATA_TYPE dataType = relop_expr->child->dataType;
+        char r = (relop_expr->regType == T_REG)? 't' : 's';
         if(dataType == INT_TYPE){
-            fprintf(outputFile, "\tmv\ta0,t%d\n", relop_expr->reg[relop_expr->regType]);
+            fprintf(outputFile, "\tmv\ta0,%c%d\n", r, relop_expr->reg[relop_expr->regType]);
             freeIntReg(relop_expr);
             fprintf(outputFile, "\tcall\t_write_int\n");
         }
         else if(dataType == FLOAT_TYPE){
-            fprintf(outputFile, "\tfmv.s\tfa0,ft%d\n", relop_expr->reg[relop_expr->regType]);
+            fprintf(outputFile, "\tfmv.s\tfa0,f%c%d\n", r, relop_expr->reg[relop_expr->regType]);
             freeFloatReg(relop_expr);
             fprintf(outputFile, "\tcall\t_write_float\n");
         }
         else if(dataType == CONST_STRING_TYPE){
-            fprintf(outputFile, "\tmv\ta0,t%d\n", relop_expr->child->reg[relop_expr->regType]);
+            fprintf(outputFile, "\tmv\ta0,%c%d\n", r, relop_expr->child->reg[relop_expr->regType]);
             freeIntReg(relop_expr);
             fprintf(outputFile, "\tcall\t_write_str\n");
         }
@@ -1108,7 +1109,7 @@ void genAssignmentStmt(AST_NODE *node){
                 fprintf(outputFile, "\tsw\t%c%d,_%s,t%d\n", r, RHS->reg[RHS->regType], getIdByNode(LHS), tmp);
             }
             else if(LHS->dataType == FLOAT_TYPE){
-                fprintf(outputFile, "\tfsw\f%c%d,_%s,t%d\n", r, RHS->reg[RHS->regType], getIdByNode(LHS), tmp);
+                fprintf(outputFile, "\tfsw\tf%c%d,_%s,t%d\n", r, RHS->reg[RHS->regType], getIdByNode(LHS), tmp);
             }
             freeTIntReg(tmp);
         }
