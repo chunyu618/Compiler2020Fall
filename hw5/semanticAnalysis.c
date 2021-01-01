@@ -1060,7 +1060,7 @@ DATA_TYPE processExprNode(AST_NODE* exprNode){
 
 
 DATA_TYPE processVariableLValue(AST_NODE* idNode){
-    //printf("process variable L value %s\n", getIdByNode(idNode));
+    printf("process variable L value %s\n", getIdByNode(idNode));
     SymbolTableEntry *entry = retrieveSymbol(getIdByNode(idNode));
     if(entry == NULL){
         printErrorMsg(idNode, SYMBOL_UNDECLARED);
@@ -1100,7 +1100,7 @@ DATA_TYPE processVariableLValue(AST_NODE* idNode){
                 return ERROR_TYPE;
             }
             int referenceDim = processDeclDimList(idNode->child, NULL, 0);
-            //printf("referenceDim is %d\n", referenceDim);
+            printf("referenceDim is %d\n", referenceDim);
             if(referenceDim > descriptor->properties.arrayProperties.dimension){
                 printErrorMsg(idNode, NOT_ARRAY);
                 return ERROR_TYPE;
@@ -1109,6 +1109,7 @@ DATA_TYPE processVariableLValue(AST_NODE* idNode){
                 printErrorMsg(idNode, NOT_ASSIGNABLE);
                 return ERROR_TYPE;
             }
+            idNode->dataType = descriptor->properties.arrayProperties.elementType;
             return descriptor->properties.arrayProperties.elementType;
         default:
             return ERROR_TYPE;
@@ -1283,6 +1284,7 @@ int processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ign
                         nameNode = idNode->parent;
                         printErrorMsg(nameNode, ARRAY_SIZE_NOT_INT);
                     }
+                    idNode->semantic_value.identifierSemanticValue.symbolTableEntry = entry;
                     break;
                 case IDENTIFIER_NODE:
                     entry = retrieveSymbol(getIdByNode(idNode));
@@ -1306,7 +1308,10 @@ int processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ign
                                 }
                                 break;
                         }
+                        idNode->dataType = INT_TYPE;
+
                     }   
+                    idNode->semantic_value.identifierSemanticValue.symbolTableEntry = entry;
                     break;
             }
             if(typeDescriptor != NULL){

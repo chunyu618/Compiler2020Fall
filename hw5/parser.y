@@ -864,6 +864,7 @@ int main(int argc, char *argv[]){
     }
 
     codeGeneration(prog);
+    printf("Generating completed\n");
     return 0;
 } /* main */
 
