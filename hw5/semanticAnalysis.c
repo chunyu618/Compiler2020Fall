@@ -1060,7 +1060,7 @@ DATA_TYPE processExprNode(AST_NODE* exprNode){
 
 
 DATA_TYPE processVariableLValue(AST_NODE* idNode){
-    printf("process variable L value %s\n", getIdByNode(idNode));
+    //printf("process variable L value %s\n", getIdByNode(idNode));
     SymbolTableEntry *entry = retrieveSymbol(getIdByNode(idNode));
     if(entry == NULL){
         printErrorMsg(idNode, SYMBOL_UNDECLARED);
@@ -1100,7 +1100,7 @@ DATA_TYPE processVariableLValue(AST_NODE* idNode){
                 return ERROR_TYPE;
             }
             int referenceDim = processDeclDimList(idNode->child, NULL, 0);
-            printf("referenceDim is %d\n", referenceDim);
+            //printf("referenceDim is %d\n", referenceDim);
             if(referenceDim > descriptor->properties.arrayProperties.dimension){
                 printErrorMsg(idNode, NOT_ARRAY);
                 return ERROR_TYPE;
@@ -1197,7 +1197,9 @@ void processStmtNode(AST_NODE* stmtNode){
     //printf("stmt node type is %s\n", NODE_TYPE_string[stmtNode->nodeType]);
     switch(stmtNode->nodeType){
         case BLOCK_NODE:
+            openScope();
             processBlockNode(stmtNode);
+            closeScope();
             return;
         case NUL_NODE:
             return;
