@@ -63,18 +63,23 @@ int enterNameSpace(char *symbolName){
 }
 
 void enterIntoHashChain(int hashIndex, SymbolTableEntry* entry){
+    //char tmp[32] = {};
+    //strncpy(tmp, getName(entry->segIndex), entry->nameLength);
+    //tmp[entry->nameLength] = '\0';
+    //printf("Symbol %s, hash value %d\n", tmp, hashIndex);
     SymbolTableEntry **head = &(currentTable()->hashTable[hashIndex]);
     if(*head == NULL){
         *head = entry;
         //printf("--------%d\n", currentTable()->hashTable[hashIndex]->nameLength);
         return;
     }
-   
-    while((*head)->nextInHashChain != NULL){
-        *head = (*head)->nextInHashChain;
+    
+    SymbolTableEntry *tmpEntry = *head;
+    while(tmpEntry->nextInHashChain != NULL){
+        tmpEntry = tmpEntry->nextInHashChain;
     }
-    (*head)->nextInHashChain = entry;
-    entry->prevInHashChain = *head;
+    tmpEntry->nextInHashChain = entry;
+    entry->prevInHashChain = tmpEntry;
 }
 
 void initializeSymbolTableStack(){
@@ -86,6 +91,7 @@ void symbolTableEnd(){
 }
 
 SymbolTableEntry* retrieveSymbol(char* symbolName){
+    //printf("Retrieve symbol %s\n", symbolName);
     // Calculate Hash Value
     int hashValue = HASH(symbolName);
     // Get Entry from Table of Lager scope to smaller scope
@@ -94,6 +100,10 @@ SymbolTableEntry* retrieveSymbol(char* symbolName){
         SymbolTable table = tableStack.entry[i];
         SymbolTableEntry *entry = table.hashTable[hashValue];
         while(entry != NULL){
+            char tmp[32] = {};
+            strncpy(tmp, getName(entry->segIndex), strlen(symbolName));
+            tmp[strlen(symbolName)] = '\0';
+            //printf("%s v.s. %s\n", symbolName, tmp);
             if(strlen(symbolName) == entry->nameLength && strncmp(symbolName, getName(entry->segIndex), entry->nameLength) == 0){
                 return entry;
             }

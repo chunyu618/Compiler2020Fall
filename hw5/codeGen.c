@@ -118,7 +118,7 @@ void genIntToFloat(AST_NODE *node, REG_TYPE regType){
     fprintf(outputFile, "\tfcvt.s.w\tf%c%d,%c%d\n", new, tmp, old, node->reg[node->regType]);
     node->regType = (new == 't')? T_REG : S_REG;
     node->reg[T_REG] = tmp;
-    printf("tmp  is %d\n", tmp);
+    //printf("tmp  is %d\n", tmp);
     return;
 }
 
@@ -971,13 +971,13 @@ void genExpr(AST_NODE *node){
                 if(LHS->dataType == FLOAT_TYPE){
                     freeTFloatReg(LHS->reg[lReg]);
                 }
-                else if(LHS->reg[lReg] == node->reg[nReg]){
+                else if(LHS->reg[lReg] != node->reg[nReg]){
                     freeTIntReg(LHS->reg[lReg]);
                 }    
                 if(RHS->dataType == FLOAT_TYPE){
                     freeTFloatReg(RHS->reg[rReg]);
                 }
-                else if(RHS->reg[rReg] == node->reg[nReg]){
+                else if(RHS->reg[rReg] != node->reg[nReg]){
                     freeTIntReg(RHS->reg[rReg]);
                 }
                 break;
@@ -1045,11 +1045,38 @@ void genVariableRValue(AST_NODE *node){
             //printf("Local Variable reference\n");
             //printf("data type is %d\n", dataType);
             //printf("Reg is %d\n", node->reg[T_REG]);
+            int offset = -(entry->offset);
+            char n = (node->regType == T_REG)? 't' : 's'; 
             if(dataType == INT_TYPE){
-                fprintf(outputFile, "\tlw\tt%d,%d(s0)\n", node->reg[node->regType], entry->offset);
+                if(offset < 2048){
+                    fprintf(outputFile, "\tlw\t%c%d,%d(s0)\n", n, node->reg[node->regType], entry->offset);     
+                }
+                else{
+                    int h = allocateTIntReg();
+                    int highBit = offset>>12;
+                    int lowBit = offset - (highBit<<12);
+                    fprintf(outputFile, "\tli\tt%d,%d\n", h, offset);
+                    //fprintf(outputFile, "\taddi\tt%d,t%d,%d\n", h, h, lowBit - 2048 * ((lowBit < 2048)? 0 : 1));
+                    fprintf(outputFile, "\tsub\tt%d,x0,t%d\n", h, h);
+                    fprintf(outputFile, "\tadd\tt%d,t%d,s0\n", h, h);
+                    fprintf(outputFile, "\tlw\t%c%d,0(t%d)\n", n, node->reg[node->regType], h);
+                    freeTIntReg(h);
+                }
             }
             else if(dataType == FLOAT_TYPE){
-                fprintf(outputFile, "\tflw\tft%d,%d(s0)\n", node->reg[node->regType], entry->offset);
+                if(offset < 2048){
+                    fprintf(outputFile, "\tflw\tf%c%d,%d(s0)\n", n, node->reg[node->regType], entry->offset);
+                }
+                else{
+                    int h = allocateTIntReg();
+                    int highBit = offset>>12;
+                    fprintf(outputFile, "\tli\tt%d,%d\n", h, offset);
+                    //fprintf(outputFile, "\taddi\tt%d,t%d,%d\n", h, h, offset - (highBit<<12));
+                    fprintf(outputFile, "\tsub\tt%d,x0,t%d\n", h, h);
+                    fprintf(outputFile, "\tadd\tt%d,t%d,s0\n", h, h);
+                    fprintf(outputFile, "\tflw\t%c%d,0(t%d)\n", n, node->reg[node->regType], h);
+                    freeTIntReg(h);
+                }
             }
             else{
                 printf("Error dataType %d\n", dataType);
@@ -1123,15 +1150,41 @@ void genAssignmentStmt(AST_NODE *node){
     if(LHSKind == NORMAL_ID){
         if(LHSEntry->scope > 0){
             //printf("Scope is %d\n", LHSEntry->scope);
+            int offset = -(LHSEntry->offset);
+            //printf("LHS Offset is %d\n", offset);
             if(LHS->dataType == INT_TYPE){
                 //printf("In LHS\n");
-                int offset = -(LHS->offset);
-                if(offset < )
-                fprintf(outputFile, "\tsw\t%c%d,%d(s0)\n", r, RHS->reg[RHS->regType], LHSEntry->offset);
+                if(offset < 2048){
+                    fprintf(outputFile, "\tsw\t%c%d,%d(s0)\n", r, RHS->reg[RHS->regType], LHSEntry->offset);
+                }
+                else{
+                    int h = allocateTIntReg();
+                    int highBit = offset>>12;
+                    int lowBit = offset - (highBit<<12);
+                    fprintf(outputFile, "\tli\tt%d,%d\n", h, offset);
+                    //fprintf(outputFile, "\taddi\tt%d,t%d,%d\n", h, h, lowBit - 2048 * ((lowBit < 2048)? 0 : 1));
+                    fprintf(outputFile, "\tsub\tt%d,x0,t%d\n", h, h);
+                    fprintf(outputFile, "\tadd\tt%d,t%d,s0\n", h, h);
+                    fprintf(outputFile, "\tsw\t%c%d,0(t%d)\n", r, RHS->reg[RHS->regType], h);
+                    freeTIntReg(h);
+                }
                 freeTIntReg(RHS->reg[RHS->regType]);
+                
             }
             else if(LHS->dataType == FLOAT_TYPE){
-                fprintf(outputFile, "\tfsw\tf%c%d,%d(s0)\n", r, RHS->reg[RHS->regType], LHSEntry->offset);
+                if(offset < 2048){    
+                    fprintf(outputFile, "\tfsw\tf%c%d,%d(s0)\n", r, RHS->reg[RHS->regType], LHSEntry->offset);
+                }
+                else{
+                    int h = allocateTIntReg();
+                    int highBit = offset>>12;
+                    fprintf(outputFile, "\tli\tt%d,%d\n", h, offset);
+                    //fprintf(outputFile, "\taddi\tt%d,t%d,%d\n", h, h, offset - (highBit<<12));
+                    fprintf(outputFile, "\tsub\tt%d,x0,t%d\n", h, h);
+                    fprintf(outputFile, "\tadd\tt%d,t%d,s0\n", h, h);
+                    fprintf(outputFile, "\tsw\t%c%d,0(t%d)\n", r, RHS->reg[RHS->regType], h);
+                    freeTIntReg(h);
+                }
                 freeTFloatReg(RHS->reg[RHS->regType]);
             }
         }
@@ -1311,15 +1364,16 @@ void genArrayRef(AST_NODE *node){
         int scope = node->semantic_value.identifierSemanticValue.symbolTableEntry->scope;
         if(scope > 0){
             int offset = -(node->semantic_value.identifierSemanticValue.symbolTableEntry->offset);
-            printf("Offset is %d\n", offset);
+            //printf("Offset is %d\n", offset);
             if(offset < 2048){
                 fprintf(outputFile, "\taddi\tt%d,s0,-%d\n", addr, offset);
             }
             else{
                 int h = allocateTIntReg();
                 int highBit = offset>>12;
-                fprintf(outputFile, "\tlui\tt%d,%d\n", h, highBit);
-                fprintf(outputFile, "\taddi\tt%d,t%d,%d\n", h, h, offset - (highBit<<12));
+                int lowBit = offset - (highBit<<12);
+                fprintf(outputFile, "\tli\tt%d,%d\n", h, offset);
+                //fprintf(outputFile, "\taddi\tt%d,t%d,%d\n", h, h, lowBit - 2048 * ((lowBit < 2048)? 0 : 1));
                 fprintf(outputFile, "\tsub\tt%d,x0,t%d\n", h, h);
                 fprintf(outputFile, "\tadd\tt%d,s0,t%d\n", addr, h);
                 freeTIntReg(h);

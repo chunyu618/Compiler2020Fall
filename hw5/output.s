@@ -1,3 +1,5 @@
+.data
+_i:  .word  0
 .text
 _MAIN_Prologue:
 _start_MAIN:
@@ -28,48 +30,27 @@ _start_MAIN:
 	fsw	ft10,144(sp)
 	fsw	ft11,152(sp)
 	li	t0,0
-	sw	t0,-8000008(s0)
-	li	t0,123
-	li	t2,123
-	lui	t3,1953
-	addi	t3,t3,512
-	sub	t3,x0,t3
-	add	t1,s0,t3
-	slli	t2,t2,3
-	add	t2,t2,t1
-	sw	t0,0(t2)
-	li	t0,456
-	li	t2,456
-	lui	t3,3906
-	addi	t3,t3,1032
-	sub	t3,x0,t3
-	add	t1,s0,t3
-	slli	t2,t2,3
-	add	t2,t2,t1
-	sw	t0,0(t2)
-	lw	t0,-8000008(s0)
+	sw	t0,_i,t1
+_LABEL_0:
+	lw	t0,_i
+	li	t1,10
+	slt	t0,t0,t1
+	beqz	t0,_LABEL_1
+	lw	t0,_i
 	mv	a0,t0
 	call	_write_int
-	li	t2,123
-	lui	t3,1953
-	addi	t3,t3,512
-	sub	t3,x0,t3
-	add	t1,s0,t3
-	slli	t2,t2,3
-	add	t2,t2,t1
-	lw	t0,0(t2)
+.data
+_CONSTANT_0:  .ascii  "\n\0"
+.text
+	la	t0,_CONSTANT_0
 	mv	a0,t0
-	call	_write_int
-	li	t2,456
-	lui	t3,3906
-	addi	t3,t3,1032
-	sub	t3,x0,t3
-	add	t1,s0,t3
-	slli	t2,t2,3
-	add	t2,t2,t1
-	lw	t0,0(t2)
-	mv	a0,t0
-	call	_write_int
+	call	_write_str
+	lw	t0,_i
+	li	t1,1
+	add	t0,t0,t1
+	sw	t0,_i,t1
+	j	_LABEL_0
+_LABEL_1:
 .text
 _MAIN_Epilogue:
 	lw	t0,8(sp)
@@ -97,4 +78,4 @@ _MAIN_Epilogue:
 	ld	fp,0(fp)
 	jr	ra
 .data
-_frameSize_MAIN:  .word  16000168
+_frameSize_MAIN:  .word  160
