@@ -378,7 +378,7 @@ void genGlobalDeclaration(AST_NODE *root){
                 for(int dim = 0; dim < property.dimension; dim++){
                     size *= property.sizeInEachDimension[dim];
                 }
-                fprintf(outputFile, "_%s:  .word  %d\n", getIdByNode(id), size);
+                fprintf(outputFile, "_%s:  .zero  %d\n", getIdByNode(id), size);
             }
         }
     }
@@ -710,7 +710,6 @@ void genExpr(AST_NODE *node){
         node->regType = T_REG;
         node->reg[node->regType] = node->child->reg[node->child->regType];
         if(exprSemanticValue.op.unaryOp == UNARY_OP_NEGATIVE){
-            printf("node type is %d\n", node->dataType);
             if(node->dataType == INT_TYPE){
                 fprintf(outputFile, "\tneg\tt%d,t%d\n", node->reg[node->regType], node->reg[node->regType]);
             }
@@ -727,7 +726,7 @@ void genExpr(AST_NODE *node){
                 freeTFloatReg(node->child->reg[node->child->regType]);
             }
             int reg = node->reg[node->regType];
-            fprintf(outputFile, "\tnot\tt%d,t%d\n", reg, reg);        
+            fprintf(outputFile, "\tseqz\tt%d,t%d\n", reg, reg);        
         }
     }
     else{

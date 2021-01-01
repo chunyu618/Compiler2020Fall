@@ -1,17 +1,20 @@
-int a[10];
-int b[10];
+int arr[123];
+
 
 int MAIN(){
-    a[0] = 12345;
-    a[1] = 45678;
-    a[2] = 45678;
-    a[3] = 45678;
-    write(a[0]);
+    arr[0] = 123;
+    arr[1] = 12345;
+    arr[2] = 123;
+    arr[3] = 123;
+    arr[4] = 123;
+    write(arr[0]);
     write("\n");
-    write(a[1]);
+    write(arr[1]);
     write("\n");
-    write(a[2]);
+    write(arr[2]);
     write("\n");
-    write(a[3]);
+    write(arr[3]);
+    write("\n");
+    write(arr[4]);
     write("\n");
 }
