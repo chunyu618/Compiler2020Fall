@@ -1,20 +1,14 @@
-int f1(){
-    write("f1\n");
-    return 1;
-}
-
-float f2(){
-    write("f2\n");
-    return 0.0;
-}
-
 int MAIN(){
-    float a = 123.123;
-    write(a);
-    write("\n");
-    a = f1();
-    write(a);
-    write("\n");
+    int n = 10, m = 10;
+    int i, j;
+    int value[100], w[100], dp[100][100];
+    for(i = 0; i < n; i = i + 1){
+        for(j = 0; j < m; j = j + 1){
+            if((j>=w[i])&&(dp[i][j]<dp[i-1][j-w[i]]+value[i])){
+                dp[i][j]=dp[i-1][j-w[i]]+value[i];
+            }
+        }
+    }
 
 }
 

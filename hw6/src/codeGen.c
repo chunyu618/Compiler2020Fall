@@ -17,6 +17,14 @@ int ifWithReturn = 0;
 static int localVarOffset;
 DATA_TYPE functionReturnType;
 
+typedef struct ParamInfo{
+    AST_NODE *node;
+    int offset;
+} ParamInfo;
+
+ParamInfo paramInfo[128];
+int paramStackTop = 0;
+
 static __inline__ DATA_TYPE getDataTypeByEntry(SymbolTableEntry* entry){return entry->attribute->attr.typeDescriptor->properties.dataType;}
 
 static __inline__ void freeSIntReg(int reg){ sIntRegs[reg] = 0;}
@@ -223,6 +231,7 @@ void genIfStmt(AST_NODE *node);
 void genReturnStmt(AST_NODE *node);
 void genArrayRef(AST_NODE *node);
 void genForStmt(AST_NODE *node);
+void evalParameter(Parameter *param, AST_NODE *arg);
 
 void codeGeneration(AST_NODE *root){
     outputFile = fopen("output.s", "w+");
@@ -393,9 +402,13 @@ void genFunctionDeclaration(AST_NODE *root){
     
     // Get all parameters and calculate offset
     AST_NODE *paramList = root->child->rightSibling->rightSibling;
+    int offset = 16;
     for(AST_NODE *param  = paramList->child; param != NULL; param = param->rightSibling){
         // In hw5 there is no function with parameters except "write", so we don't process this block this time.
         //printf("Param name is %s and type is %d\n", getIdByNode(param->child->rightSibling), processTypeNode(param->child));
+        AST_NODE *id = param->child->rightSibling;
+        id->semantic_value.identifierSemanticValue.symbolTableEntry->offset = offset;
+        offset += 8;
     }
 
     genPrologue();
@@ -555,7 +568,55 @@ void genFunctionCall(AST_NODE *node){
         }
     }
     else if(signature->parametersCount > 0){
+        DATA_TYPE returnType = signature->returnType;
+        if(returnType == INT_TYPE){
+            node->regType = S_REG;
+            node->reg[S_REG] = allocateSIntReg();
+        }
+        else if(returnType == FLOAT_TYPE){
+            node->regType = S_REG;
+            node->reg[S_REG] = allocateSFloatReg();
+        }
+       
+        genGeneralNode(relop_expr);
+        Parameter *param = signature->parameterList;
+        paramStackTop = 0;
+        evalParameter(param, relop_expr->child);
+        
+        int savedNumber = genSaveCallerReg();
+        if(savedNumber > 0){
+            fprintf(outputFile, "\taddi\tsp,sp,%d\n", savedNumber*(-8));
+        }
 
+        //printf("paramStackTop %d\n", paramStackTop);
+        fprintf(outputFile, "\taddi\tsp,sp,%d\n", paramStackTop * (-8));
+        for(int i = 0; i < paramStackTop; i++){
+            int reg = paramInfo[i].node->reg[paramInfo[i].node->regType];
+            char p = (paramInfo[i].node->regType == T_REG)? 't' : 's';
+            if(paramInfo[i].node->dataType == INT_TYPE){
+                freeIntReg(paramInfo[i].node);
+                fprintf(outputFile, "\tsw\t%c%d,%d(sp)\n", p, reg, (i + 1) * 8);
+            }
+            else if(paramInfo[i].node->dataType == FLOAT_TYPE){
+                freeFloatReg(paramInfo[i].node);
+                fprintf(outputFile, "\tfsw\tf%c%d,%d(sp)\n", p, reg, (i + 1) * 8);
+            }
+        }
+        
+        fprintf(outputFile, "\tjal\t_%s_Prologue\n", functionName);
+        fprintf(outputFile, "\taddi\tsp,sp,%d\n", paramStackTop * 8);
+
+        if(savedNumber > 0){
+            fprintf(outputFile, "\taddi\tsp,sp,%d\n", savedNumber*8);
+            genRestoreCallerReg();
+        }
+        
+        if(returnType == INT_TYPE){
+            fprintf(outputFile, "\tmv\ts%d,a0\n", node->reg[S_REG]);
+        }
+        else if(returnType == FLOAT_TYPE){
+            fprintf(outputFile, "\tfmv.s\tfs%d,fa0\n", node->reg[S_REG]);
+        }
     }
 }
 
@@ -567,7 +628,7 @@ void genExprRelated(AST_NODE *node){
             genExpr(node);
             break;
         case STMT_NODE:
-            genFunctionCall(node);
+            genStmt(node);
             break;
         case IDENTIFIER_NODE:
             /* TODO */
@@ -1114,7 +1175,7 @@ void genVariableRValue(AST_NODE *node){
 }
 
 void genAssignOrExpr(AST_NODE *node){
-    printf("node type is %d\n", node->nodeType);
+    //printf("node type is %d\n", node->nodeType);
     if(node->nodeType == STMT_NODE){
         STMT_KIND kind = node->semantic_value.stmtSemanticValue.kind;
         if(kind == ASSIGN_STMT){
@@ -1433,4 +1494,25 @@ void genForStmt(AST_NODE *node){
     genGeneralNode(loop);
     fprintf(outputFile,"\tj\t_LABEL_%d\n", startLabel);
     fprintf(outputFile, "_LABEL_%d:\n", endLabel);
+}
+
+void evalParameter(Parameter *param, AST_NODE *arg){
+    int offset = 16;
+    for(; param != NULL; param = param->next, arg = arg->rightSibling){
+        if(param->type->kind == SCALAR_TYPE_DESCRIPTOR){
+            if(param->type->properties.dataType != arg->dataType){
+                if(arg->dataType == INT_TYPE){
+                    genIntToFloat(arg, arg->regType);
+                }
+                else if(arg->dataType == FLOAT_TYPE){
+                    genFloatToInt(arg, arg->regType);
+                }
+            }
+            paramInfo[paramStackTop].node = arg;
+            paramInfo[paramStackTop].offset = offset;
+            paramStackTop++;
+            offset += 8;
+        }
+    }
+    return;
 }
