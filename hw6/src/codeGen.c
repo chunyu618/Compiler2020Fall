@@ -18,7 +18,9 @@ static int localVarOffset;
 DATA_TYPE functionReturnType;
 
 typedef struct ParamInfo{
-    AST_NODE *node;
+    DATA_TYPE dataType;
+    int regType;
+    int reg[2];
     int offset;
 } ParamInfo;
 
@@ -591,14 +593,24 @@ void genFunctionCall(AST_NODE *node){
         //printf("paramStackTop %d\n", paramStackTop);
         fprintf(outputFile, "\taddi\tsp,sp,%d\n", paramStackTop * (-8));
         for(int i = 0; i < paramStackTop; i++){
-            int reg = paramInfo[i].node->reg[paramInfo[i].node->regType];
-            char p = (paramInfo[i].node->regType == T_REG)? 't' : 's';
-            if(paramInfo[i].node->dataType == INT_TYPE){
-                freeIntReg(paramInfo[i].node);
+            int reg = paramInfo[i].reg[paramInfo[i].regType];
+            char p = (paramInfo[i].regType == T_REG)? 't' : 's';
+            if(paramInfo[i].dataType == INT_TYPE){
+                if(p == 't'){
+                    freeTIntReg(reg);
+                }
+                else if(p == 's'){
+                    freeSIntReg(reg);
+                }
                 fprintf(outputFile, "\tsw\t%c%d,%d(sp)\n", p, reg, (i + 1) * 8);
             }
-            else if(paramInfo[i].node->dataType == FLOAT_TYPE){
-                freeFloatReg(paramInfo[i].node);
+            else if(paramInfo[i].dataType == FLOAT_TYPE){
+                if(p == 't'){
+                    freeTFloatReg(reg);
+                }
+                else if(p == 's'){
+                    freeSFloatReg(reg);
+                }
                 fprintf(outputFile, "\tfsw\tf%c%d,%d(sp)\n", p, reg, (i + 1) * 8);
             }
         }
@@ -1501,6 +1513,7 @@ void evalParameter(Parameter *param, AST_NODE *arg){
     for(; param != NULL; param = param->next, arg = arg->rightSibling){
         if(param->type->kind == SCALAR_TYPE_DESCRIPTOR){
             if(param->type->properties.dataType != arg->dataType){
+                printf("Wrong type\n");
                 if(arg->dataType == INT_TYPE){
                     genIntToFloat(arg, arg->regType);
                 }
@@ -1508,7 +1521,9 @@ void evalParameter(Parameter *param, AST_NODE *arg){
                     genFloatToInt(arg, arg->regType);
                 }
             }
-            paramInfo[paramStackTop].node = arg;
+            paramInfo[paramStackTop].dataType = param->type->properties.dataType;
+            paramInfo[paramStackTop].regType = arg->regType;
+            paramInfo[paramStackTop].reg[arg->regType] = arg->reg[arg->regType];
             paramInfo[paramStackTop].offset = offset;
             paramStackTop++;
             offset += 8;
