@@ -967,7 +967,7 @@ void genExpr(AST_NODE *node){
                 fprintf(outputFile, "\tsnez\t%c%d,%c%d\n", l, LHS->reg[lReg],  r, RHS->reg[rReg]);
                 fprintf(outputFile, "\tj\t_LABEL_%d\n", short_circuit_label);
                 fprintf(outputFile, "_LABEL_%d:\n", short_circuit_label);
-                fprintf(outputFile, "\tandi\t%c%d,%c%d,1\n", n, node->reg[nReg], l, LHS->reg[lReg]);
+                //fprintf(outputFile, "\tandi\t%c%d,%c%d,1\n", n, node->reg[nReg], l, LHS->reg[lReg]);
                 
                 if(LHS->dataType == FLOAT_TYPE){
                     freeTFloatReg(LHS->reg[lReg]);
@@ -1000,7 +1000,7 @@ void genExpr(AST_NODE *node){
                 fprintf(outputFile, "\tsnez\t%c%d,%c%d\n", l, LHS->reg[lReg], r, RHS->reg[rReg]);
                 fprintf(outputFile, "\tj\t_LABEL_%d\n", short_circuit_label);
                 fprintf(outputFile, "_LABEL_%d:\n", short_circuit_label);
-                fprintf(outputFile, "\tandi\t%c%d,%c%d,1\n", n, node->reg[nReg], l, LHS->reg[lReg]);
+                //fprintf(outputFile, "\tandi\t%c%d,%c%d,1\n", n, node->reg[nReg], l, LHS->reg[lReg]);
                 
                 if(LHS->dataType == FLOAT_TYPE){
                     freeTFloatReg(LHS->reg[lReg]);

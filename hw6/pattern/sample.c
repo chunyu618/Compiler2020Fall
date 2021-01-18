@@ -1,13 +1,21 @@
+int f1(){
+    write("f1\n");
+    return 1;
+}
+
+float f2(){
+    write("f2\n");
+    return 0.0;
+}
 
 int MAIN(){
-    int i = 10;
-    int j = 0;
-    if((i = 0) && (j = 10)){
-        write(i);
-        write("\n");
-        write(j);
-        write("\n");
-    }
+    float a = 123.123;
+    write(a);
+    write("\n");
+    a = f1();
+    write(a);
+    write("\n");
+
 }
 
 
